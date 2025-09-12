@@ -3,7 +3,10 @@ from enum import IntEnum
 
 
 class Rank(IntEnum):
-    # Using rank values to differentiate between values
+    """
+    Rank values to differentiate the cards value. These are not to be confused with their actual points according to ISkO 1.2.2 which are returned with the points method.
+    """
+
     SEVEN = 7
     EIGHT = 8
     NINE = 9
@@ -18,10 +21,12 @@ class Rank(IntEnum):
         """
         Returns the point value of the card rank in Skat (ISkO 1.2.2).
         """
-        if self in (Rank.TEN, Rank.KING):
-            return 10
-        elif self == Rank.ACE:
+        if self == Rank.ACE:
             return 11
+        elif self == Rank.TEN:
+            return 10
+        elif self == Rank.KING:
+            return 4
         elif self == Rank.QUEEN:
             return 3
         elif self == Rank.JACK:
