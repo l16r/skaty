@@ -72,6 +72,10 @@ def test_trick_points():
             ],
             21,
         ),
+        (
+            [],
+            0,
+        ),
     ]
 
     for test in test_data:
