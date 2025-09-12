@@ -1,5 +1,5 @@
 import random
-from enum import Enum, IntEnum
+from enum import IntEnum
 
 
 class Rank(IntEnum):
@@ -30,7 +30,7 @@ class Rank(IntEnum):
         return 0
 
 
-class Suit(Enum):
+class Suit(IntEnum):
     """
     ISkO 1.2.1.
     """

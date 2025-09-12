@@ -71,14 +71,13 @@ enum Rank {
   QUEEN=12
   KING=13
   ACE=14
-  + points(): int
+  + @property points(): int
 }
 enum Suit {
   DIAMONDS=0
   HEARTS=1
   SPADES=2
   CLUBS=3
-  + trump_rank_value(): int
 }
 enum GameType {
   CLUBS
