@@ -24,11 +24,11 @@ abstract class AbstractRuleSet {
   + {abstract} trump_suit(): Optional[Suit]
   + {abstract} is_card_trump(card: Card): bool
   + {abstract} get_card_effective_rank_value(card: Card): int
-  + {abstract} determine_trick_winner(cards_in_trick: list[tuple[Card, Player]], leading_card: Card): Player
+  + {abstract} determine_trick_winner(cards_in_trick: list[tuple[Card, Player]]): Player
   + {abstract} calculate_game_score(players: list[Player], tricks: list[Trick]): int
   + {abstract} isValidAction(player: Player, action: Action): bool
   + {abstract} isValidBid(player: Player, action: Action, bid: int): bool
-  + {abstract} isValidCardPlay(player: Player, action: Action, card: Card): bool
+  + {abstract} isValidCardPlay(player: Player, card: Card): bool
   + {abstract} isValidGameDeclaration(player: Player, action: Action, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool): bool
 }
 class StandardSkatRuleSet {
@@ -81,12 +81,12 @@ enum Suit {
   CLUBS=3
 }
 enum GameType {
-  CLUBS
-  SPADES
-  HEARTS
   DIAMONDS
-  GRAND
+  HEARTS
+  SPADES
+  CLUBS
   NULL
+  GRAND
   RAMSCH
   PASS
 }
