@@ -1,24 +1,10 @@
 from abc import ABC, abstractmethod
-from enum import Enum, auto
+from enum import Enum
 from typing import Optional
+from dataclasses import dataclass
 
 from skaty.cards import Card, Suit
 from skaty.player import Player
-
-
-class Action(Enum):
-    """
-    All possible actions. The legality of the actions is decided according to the rule set.
-    """
-
-    PLAY_CARD = auto()
-    DRAW_SKAT = auto()
-    BURY_SKAT = auto()
-    DECLARE_BID = auto()
-    LISTEN = auto()
-    PASS = auto()
-    DECLARE_GAME = auto()
-    GIVE_UP = auto()
 
 
 class GameType(Enum):
@@ -33,6 +19,90 @@ class GameType(Enum):
     CLUBS = 12
     NULL = 23
     GRAND = 24
+
+
+class ActionType(Enum):
+    """
+    All possible actions. The legality of the actions is decided according to the rule set.
+    """
+
+    DEAL_CARDS = "DEAL_CARDS"
+    PLAY_CARD = "PLAY_CARD"
+    DRAW_SKAT = "DRAW_SKAT"
+    BURY_SKAT = "BURY_SKAT"
+    DECLARE_BID = "DECLARE_BID"
+    LISTEN = "LISTEN"
+    PASS = "PASTEN"
+    DECLARE_GAME = "DECLARE_GAME"
+    GIVE_UP = "GIVE_UP"
+
+
+@dataclass(frozen=True)
+class Action:
+    @property
+    def type(self) -> ActionType:
+        return ActionType[self.__class__.__name__.upper()]
+
+
+@dataclass(frozen=True)
+class DealCards(Action):
+    """Deal cards."""
+
+    pass
+
+
+@dataclass(frozen=True)
+class PlayCard(Action):
+    """Play specific card."""
+
+    card: Card
+
+
+@dataclass(frozen=True)
+class BurySkat(Action):
+    """Bury cards from hand into the Skat."""
+
+    cards: tuple[Card, Card]
+
+
+@dataclass(frozen=True)
+class DeclareBid(Action):
+    """Declare bid value."""
+
+    bid: int
+
+
+@dataclass(frozen=True)
+class Listen(Action):
+    """Listen during bidding phase."""
+
+    pass
+
+
+@dataclass(frozen=True)
+class Pass(Action):
+    """Pass in bidding or game declaration."""
+
+    pass
+
+
+@dataclass(frozen=True)
+class DeclareGame(Action):
+    """Declare specific game"""
+
+    game_type: GameType
+    hand: bool
+    trump_suit: Optional[Suit] = None
+    schneider: bool = False
+    schwarz: bool = False
+    open: bool = False
+
+
+@dataclass(frozen=True)
+class GiveUp(Action):
+    """Give up."""
+
+    pass
 
 
 class AbstractRuleSet(ABC):
@@ -65,7 +135,7 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def isValidBid(self, player: Player, action: Action, bid: int) -> bool:
+    def isValidBid(self, player: Player, bid: int) -> bool:
         pass
 
     @abstractmethod
@@ -76,7 +146,6 @@ class AbstractRuleSet(ABC):
     def isValidGameDeclaration(
         self,
         player: Player,
-        action: Action,
         bid: int,
         game_type: GameType,
         hand: bool,

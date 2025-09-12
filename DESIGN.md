@@ -32,24 +32,27 @@ abstract class AbstractRuleSet {
   + {abstract} determine_trick_winner(cards_in_trick: list[Card]): Player
   + {abstract} calculate_game_score(players: list[Player], tricks: list[Trick]): int
   + {abstract} isValidAction(player: Player, action: Action): bool
-  + {abstract} isValidBid(player: Player, action: Action, bid: int): bool
+  + {abstract} isValidBid(player: Player, bid: int): bool
   + {abstract} isValidCardPlay(player: Player, card: Card): bool
-  + {abstract} isValidGameDeclaration(player: Player, action: Action, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool): bool
+  + {abstract} isValidGameDeclaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool): bool
 }
 class StandardSkatRuleSet {
 }
 class GameState {
   - players: list[Player]
+  - active_player: int
+  - trick: Trick
   - rule_set: AbstractRuleSet
-  - current_trick: Optional[Trick]
   - trick_history: list[Trick]
-  - action_history: list[tuple[int, Player, Action]]
-  + startGame()
+  - action_history: list[tuple[Player, Action]]
+  - bid: int
+  - phase: GamePhase
   + apply_action(player: Player, action: Action): bool
   + isGameOver(): bool
   + calculateFinalScore(): int
-  + possibleActions(player: Player): list[Action]
+  + possibleActions(player: Player): list[ActionType]
   + reverseLastAction()
+  - advance_turn()
 }
 class Trick {
   - cards: list[Card]
@@ -58,7 +61,8 @@ class Trick {
   + getWinner(rule_set: AbstractRuleSet): int
   + getTrickPoints(): int
 }
-enum Action {
+enum ActionType {
+  DEAL_CARDS
   PLAY_CARD
   DRAW_SKAT
   BURY_SKAT
@@ -67,6 +71,41 @@ enum Action {
   PASS
   DECLARE_GAME
   GIVE_UP
+}
+enum GamePhase {
+  PRE_DEAL
+  BID
+  PASSED
+  DECLARATION
+  PLAYING
+  LOST
+  WON
+}
+class Action {
+  + @property type(): ActionType
+}
+class PlayCard {
+  + card: Card
+}
+class BurySkat {
+  + cards: tuple[Card, Card]
+}
+class DeclareBid {
+  + bid: int
+}
+class Listen {
+}
+class Pass {
+}
+class DeclareGame {
+  + game_type: GameType
+  + hand: bool
+  + trump_suit: Optional[Suit]
+  + schneider: bool
+  + schwarz: bool
+  + open: bool
+}
+class GiveUp {
 }
 enum Rank {
   SEVEN=7
@@ -95,7 +134,8 @@ enum GameType {
   RAMSCH
   PASS
 }
-Player "0..*" *-- "1" Role: has
+Player "0..*" *-- "1" Role: is
+Player "1" -- "1" GameState : active player
 Player "0..*" -- "1" GameState : controls
 Player "1" *-- "0..10*" Card : has
 Card "1" -- "1" Rank : contains
@@ -107,8 +147,18 @@ GameState "1" *-- "1" AbstractRuleSet : uses
 GameState "1" *-- "0..1" Trick : current
 GameState "1" *-- "0..*" Trick : history
 GameState "1" -- "0..*" Action: consists of
+GameState "0..*" -- "1" GamePhase: is in
 
 StandardSkatRuleSet ..|> AbstractRuleSet
+
+Action "0..*" -- "1" ActionType: type
+PlayCard  --|> Action
+BurySkat  --|> Action
+DeclareBid  --|> Action
+Listen  --|> Action
+Pass  --|> Action
+DeclareGame  --|> Action
+GiveUp  --|> Action
 
 AbstractRuleSet ..> Card
 AbstractRuleSet ..> Player
