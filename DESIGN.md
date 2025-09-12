@@ -12,12 +12,13 @@ class Card {
   + __hash__(): int
 }
 class Player {
+  + role: Role
   - name: str
   - hand: list[Card]
-  + getName(): str
-  + getHand(): list[Card]
+  + @property name(): str
+  + @property hand(): list[Card]
   + addCard(card: Card)
-  + removeCard(card: Card): Card
+  + removeCard(card: Card)
 }
 enum Role {
   OPPOSITION
@@ -94,17 +95,18 @@ enum GameType {
   RAMSCH
   PASS
 }
-GameState "1" -- "0..*" Action: consists of
+Player "0..*" *-- "1" Role: has
 Player "0..*" -- "1" GameState : controls
+Player "1" *-- "0..10*" Card : has
 Card "1" -- "1" Rank : contains
 Card "1" -- "1" Suit : contains
-Player "1" *-- "0..10*" Card : has
 Trick "1" *-- "0..3" Card : contains
 Trick "1" -- "1" Player : led by
 GameState "1" *-- "3" Player : has
 GameState "1" *-- "1" AbstractRuleSet : uses
 GameState "1" *-- "0..1" Trick : current
 GameState "1" *-- "0..*" Trick : history
+GameState "1" -- "0..*" Action: consists of
 
 StandardSkatRuleSet ..|> AbstractRuleSet
 

@@ -9,8 +9,25 @@ class Role(Enum):
 
 
 class Player:
-    _role: Role
+    _name: str
+    role: Role
     _hand: list[Card]
 
     def __init__(self, name: str):
         self._name = name
+        self.role = Role.OPPOSITION
+        self._hand = list()
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def hand(self) -> list[Card]:
+        return self._hand
+
+    def addCard(self, card: Card):
+        self._hand.append(card)
+
+    def removeCard(self, card: Card):
+        self._hand.remove(card)
