@@ -24,7 +24,7 @@ abstract class AbstractRuleSet {
   + {abstract} trump_suit(): Optional[Suit]
   + {abstract} is_card_trump(card: Card): bool
   + {abstract} get_card_effective_rank_value(card: Card): int
-  + {abstract} determine_trick_winner(cards_in_trick: List<(Card, Player)>, leading_card: Card): Player
+  + {abstract} determine_trick_winner(cards_in_trick: list[tuple[Card, Player]], leading_card: Card): Player
   + {abstract} calculate_game_score(list[Player], list[Trick]): int
   + {abstract} isValidAction(Player, Action): bool
   + {abstract} isValidBid(Player, Action, int): bool
