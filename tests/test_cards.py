@@ -1,4 +1,6 @@
 from skaty.cards import Card, Rank, Suit, create_deck, shuffle_deck
+from skaty.player import Player
+from skaty.trick import Trick
 
 
 def test_eq():
@@ -34,3 +36,22 @@ def test_shuffle_deck():
             in_place += 1
     # At least 7 cards should move
     assert in_place < len(deck) - 6
+
+
+def test_trick_points():
+    test_data = [
+        (
+            [
+                Card(Rank.ACE, Suit.CLUBS),
+                Card(Rank.SEVEN, Suit.DIAMONDS),
+                Card(Rank.KING, Suit.CLUBS),
+            ],
+            15,
+        )
+    ]
+
+    for test in test_data:
+        trick = Trick()
+        for c in test[0]:
+            trick.add_card(c, Player("test"))
+        assert trick.getTrickPoints() == test[1]
