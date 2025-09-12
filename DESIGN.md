@@ -47,7 +47,7 @@ class GameState {
   + reverseLastAction()
 }
 class Trick {
-  - cards_played: list[tuple[Card, Player]]
+  - cards: list[tuple[Card, Player]]
   + addCard(card: Card, player: Player)
   + isComplete(): bool
   + getWinner(rule_set: AbstractRuleSet): Player
