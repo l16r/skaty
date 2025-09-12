@@ -47,11 +47,35 @@ def test_trick_points():
                 Card(Rank.KING, Suit.CLUBS),
             ],
             15,
-        )
+        ),
+        (
+            [
+                Card(Rank.SEVEN, Suit.CLUBS),
+                Card(Rank.EIGHT, Suit.SPADES),
+                Card(Rank.NINE, Suit.HEARTS),
+            ],
+            0,
+        ),
+        (
+            [
+                Card(Rank.JACK, Suit.HEARTS),
+                Card(Rank.JACK, Suit.CLUBS),
+                Card(Rank.QUEEN, Suit.HEARTS),
+            ],
+            7,
+        ),
+        (
+            [
+                Card(Rank.TEN, Suit.DIAMONDS),
+                Card(Rank.NINE, Suit.DIAMONDS),
+                Card(Rank.ACE, Suit.SPADES),
+            ],
+            21,
+        ),
     ]
 
     for test in test_data:
         trick = Trick()
         for c in test[0]:
-            trick.add_card(c, Player("test"))
+            trick.add_card(c)
         assert trick.getTrickPoints() == test[1]

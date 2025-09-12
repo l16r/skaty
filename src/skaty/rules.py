@@ -53,7 +53,7 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def determine_trick_winner(self, trick: list[tuple[Card, Player]]) -> int:
+    def determine_trick_winner(self, trick: list[Card]) -> int:
         pass
 
     @abstractmethod
