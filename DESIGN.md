@@ -1,8 +1,8 @@
 ```
 @startuml
 class Card {
-  - _rank: Rank
-  - _suit: Suit
+  - rank: Rank
+  - suit: Suit
   + @property rank(): Rank
   + @property suit(): Suit
   + @property points(): int
@@ -12,10 +12,10 @@ class Card {
   + __hash__(self): int
 }
 class Player {
-  - _name: str
-  - _hand: List<Card>
+  - name: str
+  - hand: list[Card]
   + getName(): str
-  + getHand(): List<Card>
+  + getHand(): list[Card]
   + addCard(card: Card)
   + removeCard(card: Card): Card
 }
@@ -34,11 +34,11 @@ abstract class AbstractRuleSet {
 class StandardSkatRuleSet {
 }
 class GameState {
-  - _players: list[Player]
-  - _rule_set: AbstractRuleSet
-  - _current_trick: Optional[Trick]
-  - _trick_history: list[Trick]
-  - _action_history: list[tuple[int, Player, Action]]
+  - players: list[Player]
+  - rule_set: AbstractRuleSet
+  - current_trick: Optional[Trick]
+  - trick_history: list[Trick]
+  - action_history: list[tuple[int, Player, Action]]
   + startGame()
   + apply_action(Player, Action): bool
   + isGameOver(): bool
@@ -47,9 +47,7 @@ class GameState {
   + reverseLastAction()
 }
 class Trick {
-  - _cards_played: list[tuple[Card, Player]]
-  - _leading_player: Player
-  - _leading_card: Optional<Card>
+  - cards_played: list[tuple[Card, Player]]
   + addCard(card: Card, player: Player)
   + isComplete(): bool
   + getWinner(rule_set: AbstractRuleSet): Player
