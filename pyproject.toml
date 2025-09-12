@@ -1,7 +1,7 @@
 [project]
 name = "skaty"
 version = "0.1.0"
-description = ""
+description = "An extensible Skat implementation according to the International Skat Order (ISkO)."
 authors = [{ name = "Luis M. Lindner", email = "luis@l16r.com" }]
 readme = "README.md"
 requires-python = ">=3.13"
