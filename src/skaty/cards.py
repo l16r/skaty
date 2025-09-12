@@ -69,7 +69,7 @@ class Card:
     def __repr__(self) -> str:
         return f"Card({self.rank.name}, {self.suit.name})"
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.suit, self.rank))
 
 

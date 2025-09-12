@@ -7,6 +7,9 @@ class Card {
   + @property suit(): Suit
   + @property points(): int
   + __eq__(other: Card): bool
+  + __str__(self): str
+  + __repr__(self): str
+  + __hash__(self): int
 }
 class Player {
   - _name: str
