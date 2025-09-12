@@ -5,7 +5,7 @@ class Card {
   - _suit: Suit
   + @property rank(): Rank
   + @property suit(): Suit
-  + points(): int
+  + @property points(): int
   + __eq__(other: Card): bool
 }
 class Player {
