@@ -7,9 +7,9 @@ class Card {
   + @property suit(): Suit
   + @property points(): int
   + __eq__(other: Card): bool
-  + __str__(self): str
-  + __repr__(self): str
-  + __hash__(self): int
+  + __str__(): str
+  + __repr__(): str
+  + __hash__(): int
 }
 class Player {
   - name: str
@@ -25,11 +25,11 @@ abstract class AbstractRuleSet {
   + {abstract} is_card_trump(card: Card): bool
   + {abstract} get_card_effective_rank_value(card: Card): int
   + {abstract} determine_trick_winner(cards_in_trick: list[tuple[Card, Player]], leading_card: Card): Player
-  + {abstract} calculate_game_score(list[Player], list[Trick]): int
-  + {abstract} isValidAction(Player, Action): bool
-  + {abstract} isValidBid(Player, Action, int): bool
-  + {abstract} isValidCardPlay(Player, Action, Card): bool
-  + {abstract} isValidGameDeclaration(Player, Action, int, GameType, bool, bool, bool, bool): bool
+  + {abstract} calculate_game_score(players: list[Player], tricks: list[Trick]): int
+  + {abstract} isValidAction(player: Player, action: Action): bool
+  + {abstract} isValidBid(player: Player, action: Action, bid: int): bool
+  + {abstract} isValidCardPlay(player: Player, action: Action, card: Card): bool
+  + {abstract} isValidGameDeclaration(player: Player, action: Action, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool): bool
 }
 class StandardSkatRuleSet {
 }
@@ -40,10 +40,10 @@ class GameState {
   - trick_history: list[Trick]
   - action_history: list[tuple[int, Player, Action]]
   + startGame()
-  + apply_action(Player, Action): bool
+  + apply_action(player: Player, action: Action): bool
   + isGameOver(): bool
   + calculateFinalScore(): int
-  + possibleActions(Player): list[Action]
+  + possibleActions(player: Player): list[Action]
   + reverseLastAction()
 }
 class Trick {
