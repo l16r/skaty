@@ -4,13 +4,13 @@ from skaty.cards import Card
 
 
 class Role(Enum):
-    Defender = 0
-    Declarer = 1
+    OPPOSITION = 0
+    DECLARER = 1
 
 
 class Player:
     _role: Role
-    _cards: list[Card]
+    _hand: list[Card]
 
     def __init__(self, name: str):
         self._name = name

@@ -19,6 +19,10 @@ class Player {
   + addCard(card: Card)
   + removeCard(card: Card): Card
 }
+enum Role {
+  OPPOSITION
+  DECLARER
+}
 abstract class AbstractRuleSet {
   + {abstract} game_type(): GameType
   + {abstract} trump_suit(): Optional[Suit]
