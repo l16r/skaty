@@ -109,7 +109,6 @@ class DeclareGame(Action):
 
     game_type: GameType
     hand: bool
-    trump_suit: Optional[Suit] = None
     schneider: bool = False
     schwarz: bool = False
     open: bool = False

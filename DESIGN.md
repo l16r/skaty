@@ -136,7 +136,6 @@ class Pass {
 class DeclareGame {
   + game_type: GameType
   + hand: bool
-  + trump_suit: Optional[Suit]
   + schneider: bool
   + schwarz: bool
   + open: bool
