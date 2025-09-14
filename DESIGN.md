@@ -1,3 +1,35 @@
+## State-Machine
+
+For GameState.\_phase with repeated GameState.apply_action(...).
+
+```
+@startuml
+state "PRE_DEAL" as predeal
+state "BID" as bid
+state "PASSED" as passed
+state "DECLARATION" as declaration
+state "PLAYING" as playing
+state "LOST" as lost
+state "WON" as won
+
+predeal --> bid: Action.DEAL_CARDS
+bid --> bid: Action.DECLARE_BID
+bid -> passed: Action.DECLARE_BID
+bid --> declaration: Action.DECLARE_BID
+declaration --> declaration: Action.DRAW_SKAT
+declaration --> declaration: Action.BURY_SKAT if Action.DRAW_SKAT
+declaration --> playing: Action.DECLARE_GAME
+declaration --> lost: Action.PASS
+playing --> playing: Action.PLAY_CARD
+playing --> lost: Action.GIVE_UP 2x
+playing --> won: Action.GIVE_UP 2x
+playing --> lost: Action.PLAY_CARD
+playing --> won: Action.PLAY_CARD
+@enduml
+```
+
+## Class Diagram
+
 ```
 @startuml
 class Card {
@@ -48,7 +80,10 @@ class GameState {
   - action_history: list[tuple[Player, Action]]
   - bid: int
   - phase: GamePhase
-  + apply_action(player: Player, action: Action): bool
+  - skat: Optional[tuple[Card, Card]]
+  - points: dict[Player, int]
+  - hand_available: bool
+  + apply_action(player: Player, action: Action, phase: GamePhase): bool
   + isGameOver(): bool
   + calculateFinalScore(): int
   + possibleActions(player: Player): list[ActionType]

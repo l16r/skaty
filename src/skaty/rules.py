@@ -7,6 +7,16 @@ from skaty.cards import Card, Suit
 from skaty.player import Player
 
 
+class GamePhase(Enum):
+    PRE_DEAL = "PRE_DEAL"
+    BID = "BID"
+    PASSED = "PASSED"
+    DECLARATION = "DECLARATION"
+    PLAYING = "PLAYING"
+    LOST = "LOST"
+    WON = "WON"
+
+
 class GameType(Enum):
     """
     Basic values for suit, grand and null games according to ISkO 2.4.1, 2.4.2. Null {hand|ouvert} are respected in the rule sets calculate_game_score method.
@@ -56,6 +66,13 @@ class PlayCard(Action):
     """Play specific card."""
 
     card: Card
+
+
+@dataclass(frozen=True)
+class DrawSkat(Action):
+    """Draw Skat, removing hand, Schneider and Schneider Schwarz (announced) and open as winning options (ISkO 2.5.1)."""
+
+    pass
 
 
 @dataclass(frozen=True)
@@ -131,7 +148,7 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def isValidAction(self, player: Player, action: Action) -> bool:
+    def isValidAction(self, player: Player, action: Action, phase: GamePhase) -> bool:
         pass
 
     @abstractmethod
