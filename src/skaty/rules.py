@@ -123,11 +123,15 @@ class GiveUp(Action):
 
 class AbstractRuleSet(ABC):
     @abstractmethod
-    def game_type() -> GameType:
+    def game_type(self) -> GameType:
         pass
 
     @abstractmethod
-    def trump_suit() -> Optional[Suit]:
+    def set_game_type(self, v: GameType):
+        pass
+
+    @abstractmethod
+    def trump_suit(self) -> Optional[Suit]:
         pass
 
     @abstractmethod

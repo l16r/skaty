@@ -59,6 +59,7 @@ enum Role {
 }
 abstract class AbstractRuleSet {
   + {abstract} game_type(): GameType
+  + {abstract} set_game_type(v: GameType)
   + {abstract} trump_suit(): Optional[Suit]
   + {abstract} is_card_trump(card: Card): bool
   + {abstract} get_card_effective_rank_value(card: Card): int
