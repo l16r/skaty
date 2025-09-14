@@ -18,6 +18,7 @@ class Player {
   + @property name(): str
   + @property hand(): list[Card]
   + addCard(card: Card)
+  + addCards(cards: list[Card])
   + removeCard(card: Card)
 }
 enum Role {

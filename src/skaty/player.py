@@ -29,5 +29,9 @@ class Player:
     def addCard(self, card: Card):
         self._hand.append(card)
 
+    def addCards(self, cards: list[Card]):
+        for c in cards:
+            self.addCard(c)
+
     def removeCard(self, card: Card):
         self._hand.remove(card)
