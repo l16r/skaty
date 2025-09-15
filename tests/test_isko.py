@@ -7,6 +7,8 @@ from skaty.rules import GameType
 def test_get_card_effective_rank_value():
     isko = ISkO()
     test_data = [
+        (GameType.PASS, Card(Rank.JACK, Suit.CLUBS), 0),
+        #
         (GameType.CLUBS, Card(Rank.JACK, Suit.CLUBS), 103),
         (GameType.CLUBS, Card(Rank.JACK, Suit.SPADES), 102),
         (GameType.CLUBS, Card(Rank.JACK, Suit.HEARTS), 101),
@@ -44,6 +46,18 @@ def test_get_card_effective_rank_value():
         (GameType.NULL, Card(Rank.NINE, Suit.HEARTS), 9),
         (GameType.NULL, Card(Rank.EIGHT, Suit.SPADES), 8),
         (GameType.NULL, Card(Rank.SEVEN, Suit.HEARTS), 7),
+        #
+        (GameType.GRAND, Card(Rank.JACK, Suit.CLUBS), 103),
+        (GameType.GRAND, Card(Rank.JACK, Suit.SPADES), 102),
+        (GameType.GRAND, Card(Rank.JACK, Suit.HEARTS), 101),
+        (GameType.GRAND, Card(Rank.JACK, Suit.DIAMONDS), 100),
+        (GameType.GRAND, Card(Rank.ACE, Suit.HEARTS), 7),
+        (GameType.GRAND, Card(Rank.TEN, Suit.DIAMONDS), 6),
+        (GameType.GRAND, Card(Rank.KING, Suit.SPADES), 5),
+        (GameType.GRAND, Card(Rank.QUEEN, Suit.HEARTS), 4),
+        (GameType.GRAND, Card(Rank.NINE, Suit.HEARTS), 3),
+        (GameType.GRAND, Card(Rank.EIGHT, Suit.SPADES), 2),
+        (GameType.GRAND, Card(Rank.SEVEN, Suit.HEARTS), 1),
     ]
 
     for test in test_data:
