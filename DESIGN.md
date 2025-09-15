@@ -49,9 +49,9 @@ class Player {
   - hand: list[Card]
   + @property name(): str
   + @property hand(): list[Card]
-  + addCard(card: Card)
-  + addCards(cards: list[Card])
-  + removeCard(card: Card)
+  + add_card(card: Card)
+  + add_cards(cards: list[Card])
+  + remove_card(card: Card)
 }
 enum Role {
   OPPOSITION
@@ -65,10 +65,10 @@ abstract class AbstractRuleSet {
   + {abstract} get_card_effective_rank_value(card: Card): int
   + {abstract} determine_trick_winner(cards_in_trick: list[Card]): Player
   + {abstract} calculate_game_score(players: list[Player], tricks: list[Trick]): int
-  + {abstract} isValidAction(player: Player, action: Action): bool
-  + {abstract} isValidBid(player: Player, bid: int): bool
-  + {abstract} isValidCardPlay(player: Player, card: Card): bool
-  + {abstract} isValidGameDeclaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool): bool
+  + {abstract} is_valid_action(player: Player, action: Action): bool
+  + {abstract} is_valid_bid(player: Player, bid: int): bool
+  + {abstract} is_valid_card_play(player: Player, card: Card, first_card: Card): bool
+  + {abstract} is_valid_game_declaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool): bool
 }
 class StandardSkatRuleSet {
 }
@@ -84,19 +84,19 @@ class GameState {
   - skat: Optional[tuple[Card, Card]]
   - points: dict[Player, int]
   - hand_available: bool
+  + is_game_over(): bool
+  + possible_actions(player: Player): list[ActionType]
+  + calculate_game_score(): int
   + apply_action(player: Player, action: Action, phase: GamePhase): bool
-  + isGameOver(): bool
-  + calculateFinalScore(): int
-  + possibleActions(player: Player): list[ActionType]
-  + reverseLastAction()
+  + reverse_last_action()
   - advance_turn()
 }
 class Trick {
   - cards: list[Card]
-  + addCard(card: Card)
-  + isComplete(): bool
-  + getWinner(rule_set: AbstractRuleSet): int
-  + getTrickPoints(): int
+  + add_card(card: Card)
+  + is_complete(): bool
+  + get_winner(rule_set: AbstractRuleSet): int
+  + get_trick_points(): int
 }
 enum ActionType {
   DEAL_CARDS

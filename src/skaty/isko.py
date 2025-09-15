@@ -84,11 +84,11 @@ class ISkO(AbstractRuleSet):
         # TODO: implement
         return 0
 
-    def isValidAction(self, player: Player, action: Action, phase: GamePhase) -> bool:
+    def is_valid_action(self, player: Player, action: Action, phase: GamePhase) -> bool:
         # TODO: implement
         return True
 
-    def isValidBid(self, player: Player, bid: int) -> bool:
+    def is_valid_bid(self, player: Player, bid: int) -> bool:
         # TODO: implement
         return True
 
@@ -96,7 +96,7 @@ class ISkO(AbstractRuleSet):
         # TODO: implement
         return True
 
-    def isValidGameDeclaration(
+    def is_valid_game_declaration(
         self,
         player: Player,
         bid: int,

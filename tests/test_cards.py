@@ -1,5 +1,4 @@
 from skaty.cards import Card, Rank, Suit, create_deck, shuffle_deck
-from skaty.player import Player
 from skaty.trick import Trick
 
 
@@ -82,4 +81,4 @@ def test_trick_points():
         trick = Trick()
         for c in test[0]:
             trick.add_card(c)
-        assert trick.getTrickPoints() == test[1]
+        assert trick.get_trick_points() == test[1]

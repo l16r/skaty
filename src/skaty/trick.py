@@ -29,7 +29,7 @@ class Trick:
             raise InvalidGameStateError("Trick not complete. Cannot calculate winner.")
         return rule_set.determine_trick_winner(self._cards)
 
-    def getTrickPoints(self) -> int:
+    def get_trick_points(self) -> int:
         """
         Returns the sum of all card points. The trick does not have to be completed.
         """

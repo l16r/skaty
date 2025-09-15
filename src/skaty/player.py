@@ -26,12 +26,12 @@ class Player:
     def hand(self) -> list[Card]:
         return self._hand
 
-    def addCard(self, card: Card):
+    def add_card(self, card: Card):
         self._hand.append(card)
 
-    def addCards(self, cards: list[Card]):
+    def add_cards(self, cards: list[Card]):
         for c in cards:
-            self.addCard(c)
+            self.add_card(c)
 
-    def removeCard(self, card: Card):
+    def remove_card(self, card: Card):
         self._hand.remove(card)

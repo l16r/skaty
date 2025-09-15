@@ -151,19 +151,19 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def isValidAction(self, player: Player, action: Action, phase: GamePhase) -> bool:
+    def is_valid_action(self, player: Player, action: Action, phase: GamePhase) -> bool:
         pass
 
     @abstractmethod
-    def isValidBid(self, player: Player, bid: int) -> bool:
+    def is_valid_bid(self, player: Player, bid: int) -> bool:
         pass
 
     @abstractmethod
-    def isValidCardPlay(self, player: Player, card: Card) -> bool:
+    def is_valid_card_play(self, player: Player, card: Card, first_card: Card) -> bool:
         pass
 
     @abstractmethod
-    def isValidGameDeclaration(
+    def is_valid_game_declaration(
         self,
         player: Player,
         bid: int,
