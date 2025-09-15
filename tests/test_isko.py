@@ -311,6 +311,34 @@ def test_is_valid_card_play():
             Card(Rank.SEVEN, Suit.SPADES),
             True,
         ),
+        (
+            GameType.PASS,
+            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
+            Card(Rank.JACK, Suit.SPADES),
+            Card(Rank.JACK, Suit.HEARTS),
+            False,
+        ),
+        (
+            GameType.GRAND,
+            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
+            None,
+            Card(Rank.JACK, Suit.HEARTS),
+            True,
+        ),
+        (
+            GameType.DIAMONDS,
+            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
+            None,
+            Card(Rank.SEVEN, Suit.SPADES),
+            True,
+        ),
+        (
+            GameType.SPADES,
+            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
+            None,
+            Card(Rank.SEVEN, Suit.SPADES),
+            True,
+        ),
     ]
     rule_set = ISkO()
 
