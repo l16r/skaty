@@ -1,6 +1,6 @@
 ## State-Machine
 
-For GameState.\_phase with repeated GameState.apply_action(...).
+For `GameState._phase` with repeated `GameState.apply_action(...)`.
 
 ```
 @startuml
