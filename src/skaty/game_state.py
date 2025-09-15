@@ -71,47 +71,49 @@ class GameState:
         Raises:
             InvalidPlayError: If the player tries to play a card it does not have.
         """
-        if not self._rule_set.isValidAction(player, action, self._phase):
+        if not self._rule_set.is_valid_action(player, action, self._phase):
             return False
 
         match action:
             case DealCards():
                 shuffled = shuffle_deck(create_deck())
-                self._players[0].addCards(shuffled[0:10])
-                self._players[1].addCards(shuffled[10:20])
-                self._players[2].addCards(shuffled[20:30])
+                self._players[0].add_cards(shuffled[0:10])
+                self._players[1].add_cards(shuffled[10:20])
+                self._players[2].add_cards(shuffled[20:30])
                 self._skat = (shuffled[30], shuffled[31])
             case PlayCard(card=played_card):
                 if played_card not in player.hand:
                     raise InvalidPlayError(
                         f"{player.name} does not have {played_card}."
                     )
-                elif not self._rule_set.isValidCardPlay(player, played_card):
+                elif not self._rule_set.is_valid_card_play(
+                    player, played_card, self._trick.first_card
+                ):
                     raise InvalidPlayError(
                         f"Can not play {played_card}, because it is illegal."
                     )
-                player.removeCard(played_card)
+                player.remove_card(played_card)
                 self._trick.add_card(played_card)
                 if self._trick.is_complete():
-                    points = self._trick.getTrickPoints()
+                    points = self._trick.get_trick_points()
                     winner = self._trick.get_winner(self._rule_set)
                     # TODO: add points to winner (self._points)
             case DrawSkat():
                 assert self._skat is not None
                 assert len(self._skat) == 2
                 self._hand_available = False
-                self._players[self._active_player].addCard(self._skat[0])
-                self._players[self._active_player].addCard(self._skat[1])
+                self._players[self._active_player].add_card(self._skat[0])
+                self._players[self._active_player].add_card(self._skat[1])
                 self._skat = None
             case BurySkat(cards):
                 assert self._skat is None
                 assert not self._hand_available
                 assert len(cards) == 2
                 self._skat = (cards[0], cards[1])
-                self._players[self._active_player].removeCard(cards[0])
-                self._players[self._active_player].removeCard(cards[1])
+                self._players[self._active_player].remove_card(cards[0])
+                self._players[self._active_player].remove_card(cards[1])
             case DeclareBid(bid=value):
-                if not self._rule_set.isValidBid(player, value):
+                if not self._rule_set.is_valid_bid(player, value):
                     return False
                 self._bid = value
                 # TODO: implement bidding logic
@@ -141,7 +143,7 @@ class GameState:
                         "Can only play Schwarz if hand is avaible and used with Schneider Schwarz declaration."
                     )
 
-                if not self._rule_set.isValidGameDeclaration(
+                if not self._rule_set.is_valid_game_declaration(
                     self._players[self._active_player],
                     self._bid,
                     game_type,
