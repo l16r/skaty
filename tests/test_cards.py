@@ -1,4 +1,6 @@
 from skaty.cards import Card, Rank, Suit, create_deck, shuffle_deck
+from skaty.isko import ISkO
+from skaty.rules import GameType
 from skaty.trick import Trick
 
 
@@ -82,3 +84,13 @@ def test_trick_points():
         for c in test[0]:
             trick.add_card(c)
         assert trick.get_trick_points() == test[1]
+
+
+def test_trick_first_card():
+    t = Trick()
+    assert t.first_card is None
+    card = Card(Rank.JACK, Suit.CLUBS)
+    t.add_card(card)
+    assert t.first_card is card
+    t.add_card(Card(Rank.ACE, Suit.DIAMONDS))
+    assert t.first_card is card
