@@ -1,4 +1,5 @@
 from functools import reduce
+from typing import Optional
 
 from skaty.cards import Card
 from skaty.exceptions import InvalidGameStateError
@@ -10,6 +11,12 @@ class Trick:
 
     def __init__(self):
         self._cards = list()
+
+    @property
+    def first_card(self) -> Optional[Card]:
+        if len(self._cards) == 0:
+            return None
+        return self._cards[0]
 
     def add_card(self, card: Card):
         if self.is_complete():

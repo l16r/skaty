@@ -67,7 +67,7 @@ abstract class AbstractRuleSet {
   + {abstract} calculate_game_score(players: list[Player], tricks: list[Trick]): int
   + {abstract} is_valid_action(player: Player, action: Action): bool
   + {abstract} is_valid_bid(player: Player, bid: int): bool
-  + {abstract} is_valid_card_play(player: Player, card: Card, first_card: Card): bool
+  + {abstract} is_valid_card_play(player: Player, card: Card, first_card: Optional[Card]): bool
   + {abstract} is_valid_game_declaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool): bool
 }
 class StandardSkatRuleSet {
@@ -93,6 +93,7 @@ class GameState {
 }
 class Trick {
   - cards: list[Card]
+  + @property first_card(): Optional[Card]
   + add_card(card: Card)
   + is_complete(): bool
   + get_winner(rule_set: AbstractRuleSet): int

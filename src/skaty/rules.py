@@ -159,7 +159,9 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def is_valid_card_play(self, player: Player, card: Card, first_card: Card) -> bool:
+    def is_valid_card_play(
+        self, player: Player, card: Card, first_card: Optional[Card]
+    ) -> bool:
         pass
 
     @abstractmethod
