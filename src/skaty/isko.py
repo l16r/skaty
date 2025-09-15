@@ -92,8 +92,18 @@ class ISkO(AbstractRuleSet):
         # TODO: implement
         return True
 
-    def isValidCardPlay(self, player: Player, card: Card) -> bool:
-        # TODO: implement
+    def is_valid_card_play(self, player: Player, card: Card, first_card: Card) -> bool:
+        if card not in player.hand:
+            return False
+
+        if self.game_type() is GameType.PASS:
+            return False
+        if self.is_card_trump(first_card):
+            return self.is_card_trump(card)
+        if card.suit is not first_card.suit:
+            for c in player.hand:
+                if c.suit is first_card.suit:
+                    return False
         return True
 
     def is_valid_game_declaration(

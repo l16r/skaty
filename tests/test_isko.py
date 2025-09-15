@@ -1,5 +1,6 @@
 from skaty.cards import Card, Rank, Suit
 from skaty.isko import ISkO
+from skaty.player import Player
 from skaty.rules import GameType
 
 
@@ -212,3 +213,95 @@ def test_determine_trick_winner():
     for test in test_data:
         isko.set_game_type(test[0])
         assert isko.determine_trick_winner(test[1]) == test[2]
+
+
+def test_is_valid_card_play():
+    test_data = [
+        (
+            GameType.DIAMONDS,  # Game type
+            [
+                Card(Rank.JACK, Suit.CLUBS),
+                Card(Rank.SEVEN, Suit.DIAMONDS),
+            ],  # Player.hand
+            Card(Rank.ACE, Suit.DIAMONDS),  # First card in trick
+            Card(Rank.JACK, Suit.CLUBS),  # Second card in trick
+            True,  # Expected result
+        ),
+        (
+            GameType.DIAMONDS,
+            [],
+            Card(Rank.TEN, Suit.SPADES),
+            Card(Rank.JACK, Suit.CLUBS),
+            False,
+        ),
+        (
+            GameType.DIAMONDS,
+            [Card(Rank.JACK, Suit.CLUBS)],
+            Card(Rank.TEN, Suit.SPADES),
+            Card(Rank.JACK, Suit.CLUBS),
+            True,
+        ),
+        (
+            GameType.DIAMONDS,
+            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.SEVEN, Suit.DIAMONDS)],
+            Card(Rank.ACE, Suit.SPADES),
+            Card(Rank.JACK, Suit.CLUBS),
+            True,
+        ),
+        (
+            GameType.DIAMONDS,
+            [Card(Rank.KING, Suit.CLUBS), Card(Rank.SEVEN, Suit.DIAMONDS)],
+            Card(Rank.ACE, Suit.SPADES),
+            Card(Rank.SEVEN, Suit.DIAMONDS),
+            True,
+        ),
+        (
+            GameType.SPADES,
+            [Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
+            Card(Rank.ACE, Suit.SPADES),
+            Card(Rank.SEVEN, Suit.DIAMONDS),
+            False,
+        ),
+        (
+            GameType.SPADES,
+            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
+            Card(Rank.ACE, Suit.SPADES),
+            Card(Rank.JACK, Suit.HEARTS),
+            True,
+        ),
+        (
+            GameType.GRAND,
+            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
+            Card(Rank.JACK, Suit.SPADES),
+            Card(Rank.JACK, Suit.HEARTS),
+            True,
+        ),
+        (
+            GameType.GRAND,
+            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.SEVEN, Suit.SPADES)],
+            Card(Rank.JACK, Suit.SPADES),
+            Card(Rank.SEVEN, Suit.SPADES),
+            False,
+        ),
+        (
+            GameType.NULL,
+            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
+            Card(Rank.JACK, Suit.SPADES),
+            Card(Rank.JACK, Suit.HEARTS),
+            False,
+        ),
+        (
+            GameType.NULL,
+            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.SEVEN, Suit.SPADES)],
+            Card(Rank.JACK, Suit.SPADES),
+            Card(Rank.SEVEN, Suit.SPADES),
+            True,
+        ),
+    ]
+    rule_set = ISkO()
+
+    for test in test_data:
+        p = Player("test")
+        p.add_cards(test[1])
+        rule_set.set_game_type(test[0])
+        assert rule_set.is_valid_card_play(p, test[3], test[2]) == test[4]
