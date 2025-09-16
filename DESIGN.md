@@ -43,6 +43,13 @@ class Card {
   + __repr__(): str
   + __hash__(): int
 }
+
+class ComparableCard {
+  + card: Card
+  + rule_set: AbstractRuleSet
+  + __lt__(other: object): bool
+  + __eq__(other: object): bool
+}
 class Player {
   + role: Role
   - name: str
@@ -196,6 +203,8 @@ Listen  --|> Action
 Pass  --|> Action
 DeclareGame  --|> Action
 GiveUp  --|> Action
+
+ComparableCard ..> Card
 
 AbstractRuleSet ..> Card
 AbstractRuleSet ..> Player
