@@ -14,3 +14,7 @@ class InvalidPlayError(SkatyError):
 
 class InvalidBidError(SkatyError):
     """Raised when an illegal bid is made."""
+
+
+class IncompatibleRulesError(SkatyError):
+    """Raised when two rule sets collide (e.g. comparing two cards based on different rule sets)."""
