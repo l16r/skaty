@@ -69,13 +69,14 @@ abstract class AbstractRuleSet {
   + {abstract} set_game_type(v: GameType)
   + {abstract} trump_suit(): Optional[Suit]
   + {abstract} is_card_trump(card: Card): bool
+  + {abstract} tops(cards: list[Card]): int
   + {abstract} get_card_effective_rank_value(card: Card): int
   + {abstract} determine_trick_winner(cards_in_trick: list[Card]): Player
   + {abstract} calculate_game_score(players: list[Player], tricks: list[Trick]): int
   + {abstract} is_valid_action(player: Player, action: Action): bool
   + {abstract} is_valid_bid(player: Player, bid: int): bool
   + {abstract} is_valid_card_play(player: Player, card: Card, first_card: Optional[Card]): bool
-  + {abstract} is_valid_game_declaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool): bool
+  + {abstract} is_valid_game_declaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool, hand_available: bool): bool
 }
 class StandardSkatRuleSet {
 }

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from enum import Enum
+from enum import Enum, IntEnum
 from typing import Optional
 from dataclasses import dataclass
 
@@ -17,7 +17,7 @@ class GamePhase(Enum):
     WON = "WON"
 
 
-class GameType(Enum):
+class GameType(IntEnum):
     """
     Basic values for suit, grand and null games according to ISkO 2.4.1, 2.4.2. Null {hand|ouvert} are respected in the rule sets calculate_game_score method.
     """
@@ -139,6 +139,10 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
+    def tops(self, cards: list[Card]) -> int:
+        pass
+
+    @abstractmethod
     def get_card_effective_rank_value(self, card: Card) -> int:
         pass
 
@@ -174,5 +178,6 @@ class AbstractRuleSet(ABC):
         schneider: bool = False,
         schwarz: bool = False,
         open: bool = False,
+        hand_available: bool = True,
     ) -> bool:
         pass

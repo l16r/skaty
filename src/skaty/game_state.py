@@ -125,23 +125,6 @@ class GameState:
                 pass
             case DeclareGame(game_type, hand, schneider, schwarz, open):
                 assert self._skat is not None
-                # Not really a good solution
-                if (hand or schneider or schwarz or open) and self._hand_available:
-                    raise InvalidPlayError(
-                        "Can only play hand if the Skat has not been drawn."
-                    )
-                elif (schneider or schwarz or open) and self._hand_available and hand:
-                    raise InvalidPlayError(
-                        "Can only play Schneider, Schwarz or open if hand is available and used."
-                    )
-                if (schwarz or open) and self._hand_available and hand and schneider:
-                    raise InvalidPlayError(
-                        "Can only play Schwarz if hand is avaible and used with Schneider declaration."
-                    )
-                if open and self._hand_available and hand and schneider and schwarz:
-                    raise InvalidPlayError(
-                        "Can only play Schwarz if hand is avaible and used with Schneider Schwarz declaration."
-                    )
 
                 if not self._rule_set.is_valid_game_declaration(
                     self._players[self._active_player],
@@ -151,6 +134,7 @@ class GameState:
                     schneider,
                     schwarz,
                     open,
+                    self._hand_available,
                 ):
                     return False
             case GiveUp():

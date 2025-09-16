@@ -1,4 +1,6 @@
+import pytest
 from skaty.cards import Card, Rank, Suit
+from skaty.exceptions import InvalidPlayError
 from skaty.isko import ISkO
 from skaty.player import Player
 from skaty.rules import GameType
@@ -347,3 +349,134 @@ def test_is_valid_card_play():
         p.add_cards(test[1])
         rule_set.set_game_type(test[0])
         assert rule_set.is_valid_card_play(p, test[3], test[2]) == test[4]
+
+
+def test_is_valid_game_declaration():
+    test_cases = [
+        (
+            18,  # bid
+            GameType.DIAMONDS,  # Game type
+            False,  # hand
+            False,  # schneider announced
+            False,  # schwarz announced
+            False,  # open
+            True,  # hand available
+            True,  # expected
+        ),
+        (9, GameType.DIAMONDS, False, False, False, False, False, False),
+        (-1, GameType.GRAND, False, False, False, False, False, False),
+        (-1, GameType.PASS, False, False, False, False, False, True),
+        (18, GameType.PASS, False, False, False, False, False, True),
+        (18, GameType.DIAMONDS, False, False, False, False, False, True),
+        (24, GameType.DIAMONDS, True, False, False, False, True, True),
+        (18, GameType.DIAMONDS, False, False, False, False, False, True),
+        (18, GameType.DIAMONDS, False, False, False, False, False, True),
+        #
+        (23, GameType.NULL, False, False, False, False, False, True),
+        (35, GameType.NULL, True, False, False, False, True, True),
+        (35, GameType.NULL, True, True, True, True, True, True),
+        (46, GameType.NULL, False, False, False, True, False, True),
+        (59, GameType.NULL, True, False, False, True, True, True),
+        (60, GameType.NULL, True, False, False, True, True, False),
+    ]
+    rule_set = ISkO()
+
+    for test in test_cases:
+        assert (
+            rule_set.is_valid_game_declaration(
+                Player("test"),
+                test[0],
+                test[1],
+                test[2],
+                test[3],
+                test[4],
+                test[5],
+                test[6],
+            )
+            == test[7]
+        )
+
+    test_cases_exceptions = [
+        (
+            18,  # bid
+            GameType.DIAMONDS,  # Game type
+            True,  # hand
+            False,  # schneider announced
+            False,  # schwarz announced
+            False,  # open
+            False,  # hand available
+        ),
+        (18, GameType.DIAMONDS, True, True, False, False, False),
+        (18, GameType.DIAMONDS, True, True, True, False, False),
+        (18, GameType.DIAMONDS, False, False, False, True, False),
+        (18, GameType.DIAMONDS, False, False, True, False, False),
+        (18, GameType.DIAMONDS, False, True, False, False, False),
+    ]
+
+    for test in test_cases_exceptions:
+        with pytest.raises(InvalidPlayError):
+            rule_set.is_valid_game_declaration(
+                Player("test"),
+                test[0],
+                test[1],
+                test[2],
+                test[3],
+                test[4],
+                test[5],
+                test[6],
+            )
+
+
+def test_tops():
+    test_cases = [
+        (
+            GameType.NULL,
+            [
+                Card(Rank.JACK, Suit.CLUBS),
+                Card(Rank.JACK, Suit.HEARTS),
+                Card(Rank.ACE, Suit.CLUBS),
+            ],
+            0,
+        ),
+        (
+            GameType.PASS,
+            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.HEARTS)],
+            0,
+        ),
+        (
+            GameType.HEARTS,
+            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.HEARTS)],
+            1,
+        ),
+        (
+            GameType.HEARTS,
+            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.SPADES)],
+            2,
+        ),
+        (
+            GameType.HEARTS,
+            [Card(Rank.JACK, Suit.DIAMONDS), Card(Rank.JACK, Suit.SPADES)],
+            1,
+        ),
+        (
+            GameType.GRAND,
+            [
+                Card(Rank.JACK, Suit.DIAMONDS),
+                Card(Rank.JACK, Suit.SPADES),
+                Card(Rank.JACK, Suit.CLUBS),
+                Card(Rank.JACK, Suit.HEARTS),
+                Card(Rank.ACE, Suit.CLUBS),
+            ],
+            4,
+        ),
+        (
+            GameType.GRAND,
+            [Card(Rank.ACE, Suit.SPADES)],
+            4,
+        ),
+    ]
+    isko = ISkO()
+
+    for test in test_cases:
+        isko.set_game_type(test[0])
+        assert isko.tops(test[1]) == test[2]

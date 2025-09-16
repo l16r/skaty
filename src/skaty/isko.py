@@ -1,8 +1,77 @@
 from typing import Optional
 
 from skaty.cards import Card, Rank, Suit
+from skaty.comparable_card import ComparableCard
+from skaty.exceptions import InvalidPlayError
 from skaty.player import Player
-from skaty.rules import AbstractRuleSet, Action, GamePhase, GameType, Pass
+from skaty.rules import AbstractRuleSet, Action, GamePhase, GameType
+
+# All bid values possible. The Null values and the grand and suit values multiplied with the range of their possible multipliers.
+VALID_BID_VALUES = [
+    23,
+    35,
+    46,
+    59,
+    18,
+    20,
+    22,
+    24,
+    27,
+    30,
+    33,
+    36,
+    40,
+    44,
+    48,
+    45,
+    50,
+    55,
+    60,
+    54,
+    66,
+    72,
+    63,
+    70,
+    77,
+    84,
+    80,
+    88,
+    96,
+    81,
+    90,
+    99,
+    108,
+    100,
+    110,
+    120,
+    121,
+    132,
+    144,
+    117,
+    130,
+    143,
+    156,
+    126,
+    140,
+    154,
+    168,
+    135,
+    150,
+    165,
+    180,
+    160,
+    176,
+    192,
+    153,
+    170,
+    187,
+    204,
+    162,
+    198,
+    216,
+    240,
+    264,
+]
 
 
 class ISkO(AbstractRuleSet):
@@ -39,6 +108,42 @@ class ISkO(AbstractRuleSet):
         # ISkO 2.2.2f.
         trump = self.trump_suit()
         return (card.suit is trump) or (card.rank is Rank.JACK)
+
+    def tops(self, cards: list[Card]) -> int:
+        if self.game_type() in (GameType.PASS, GameType.NULL):
+            return 0
+
+        allTops = [Card(Rank.JACK, suit) for suit in Suit]
+        if (trump := self.trump_suit()) is not None:
+            allTops += [Card(rank, trump) for rank in Rank]
+        allTops = [ComparableCard(card, self) for card in allTops]
+        sortedAllTops = sorted(allTops, reverse=True)
+        sortedCards = sorted(
+            [ComparableCard(card, self) for card in cards], reverse=True
+        )
+
+        withTops = sortedAllTops[0] == sortedCards[0]
+        counter = 0
+
+        print(f"sortedAllTops: {sortedAllTops}")
+        print(f"sortedCards: {sortedCards}")
+        print(f"withTops: {withTops}")
+
+        if withTops:
+            for c in zip(sortedAllTops, sortedCards):
+                print(f"comparing: {c}")
+                if c[0] != c[1]:
+                    print("break with tops")
+                    break
+                counter += 1
+        else:
+            try:
+                highest_top = sortedAllTops.index(sortedCards[0])
+                counter = highest_top
+            except ValueError:
+                return len(sortedAllTops)
+
+        return counter
 
     def get_card_effective_rank_value(self, card: Card) -> int:
         if self._game_type is GameType.PASS:
@@ -111,6 +216,7 @@ class ISkO(AbstractRuleSet):
                     return False
         return True
 
+    # TODO: use information about players hand with tops to determine if bid is possible with this game without lying about tops
     def is_valid_game_declaration(
         self,
         player: Player,
@@ -120,6 +226,48 @@ class ISkO(AbstractRuleSet):
         schneider: bool = False,
         schwarz: bool = False,
         open: bool = False,
+        hand_available: bool = True,
     ) -> bool:
-        # TODO: implement
-        return True
+        if game_type is GameType.PASS:
+            return True
+        if bid not in VALID_BID_VALUES:
+            return False
+
+        if game_type is GameType.NULL:
+            # ISkO 2.4.2
+            if open and hand and hand_available:
+                return bid <= 59
+            if open:
+                return bid <= 46
+            if hand and hand_available:
+                return bid <= 35
+            return bid <= 23
+
+        # Not really a good solution
+        if (hand or schneider or schwarz or open) and not hand_available:
+            raise InvalidPlayError("Can only play hand if the Skat has not been drawn.")
+        elif (schneider or schwarz or open) and not (hand_available and hand):
+            raise InvalidPlayError(
+                "Can only play Schneider, Schwarz or open if hand is available and used."
+            )
+        if (schwarz or open) and not (hand_available and hand and schneider):
+            raise InvalidPlayError(
+                "Can only play Schwarz if hand is avaible and used with Schneider declaration."
+            )
+        if open and not (hand_available and hand and schneider and schwarz):
+            raise InvalidPlayError(
+                "Can only play Schwarz if hand is avaible and used with Schneider Schwarz declaration."
+            )
+
+        base_value = game_type.value
+        multiplier = 2
+        if hand:
+            multiplier += 1
+        if schneider and hand:
+            multiplier += 1
+        if schwarz and schneider and hand:
+            multiplier += 1
+        if open and schwarz and schneider and hand:
+            multiplier += 1
+
+        return bid <= multiplier * base_value
