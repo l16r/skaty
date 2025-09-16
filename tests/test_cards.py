@@ -1,7 +1,10 @@
 from skaty.cards import Card, Rank, Suit, create_deck, shuffle_deck
+from skaty.exceptions import InvalidGameStateError, InvalidPlayError
 from skaty.isko import ISkO
 from skaty.rules import GameType
 from skaty.trick import Trick
+
+import pytest
 
 
 def test_eq():
@@ -85,6 +88,14 @@ def test_trick_points():
             trick.add_card(c)
         assert trick.get_trick_points() == test[1]
 
+    # Exception check
+    trick = Trick()
+    for c in test_data[0][0]:
+        trick.add_card(c)
+
+    with pytest.raises(InvalidGameStateError):
+        trick.add_card(Card(Rank.SEVEN, Suit.HEARTS))
+
 
 def test_trick_first_card():
     t = Trick()
@@ -94,3 +105,9 @@ def test_trick_first_card():
     assert t.first_card is card
     t.add_card(Card(Rank.ACE, Suit.DIAMONDS))
     assert t.first_card is card
+
+
+def test_trick_get_winner():
+    t = Trick()
+    with pytest.raises(InvalidGameStateError):
+        t.get_winner(ISkO())
