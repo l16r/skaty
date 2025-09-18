@@ -1,4 +1,5 @@
 import pytest
+from skaty import isko
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import InvalidPlayError
 from skaty.isko import ISkO
@@ -69,7 +70,6 @@ def test_get_card_effective_rank_value():
 
 def test_determine_trick_winner():
     ruleset = ISkO()
-
     test_data = [
         (
             GameType.HEARTS,
@@ -458,6 +458,35 @@ def test_tops():
             1,
         ),
         (
+            GameType.HEARTS,
+            [
+                Card(Rank.JACK, Suit.CLUBS),
+                Card(Rank.JACK, Suit.SPADES),
+                Card(Rank.JACK, Suit.HEARTS),
+                Card(Rank.JACK, Suit.DIAMONDS),
+                Card(Rank.ACE, Suit.HEARTS),
+                Card(Rank.TEN, Suit.HEARTS),
+                Card(Rank.KING, Suit.HEARTS),
+                Card(Rank.QUEEN, Suit.HEARTS),
+                Card(Rank.NINE, Suit.HEARTS),
+                Card(Rank.EIGHT, Suit.HEARTS),
+                Card(Rank.SEVEN, Suit.HEARTS),
+            ],
+            11,
+        ),
+        (
+            GameType.HEARTS,
+            [
+                Card(Rank.SEVEN, Suit.HEARTS),
+            ],
+            10,
+        ),
+        (
+            GameType.HEARTS,
+            [Card(Rank.ACE, Suit.SPADES)],
+            11,
+        ),
+        (
             GameType.GRAND,
             [
                 Card(Rank.JACK, Suit.DIAMONDS),
@@ -470,12 +499,21 @@ def test_tops():
         ),
         (
             GameType.GRAND,
+            [
+                Card(Rank.JACK, Suit.DIAMONDS),
+                Card(Rank.JACK, Suit.SPADES),
+                Card(Rank.ACE, Suit.CLUBS),
+            ],
+            1,
+        ),
+        (
+            GameType.GRAND,
             [Card(Rank.ACE, Suit.SPADES)],
             4,
         ),
     ]
-    isko = ISkO()
+    ruleset = ISkO()
 
     for test in test_cases:
-        isko.set_game_type(test[0])
-        assert isko.tops(test[1]) == test[2]
+        ruleset.set_game_type(test[0])
+        assert ruleset.tops(test[1]) == test[2]
