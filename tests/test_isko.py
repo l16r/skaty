@@ -7,7 +7,7 @@ from skaty.rules import GameType
 
 
 def test_get_card_effective_rank_value():
-    isko = ISkO()
+    ruleset = ISkO()
     test_data = [
         (GameType.PASS, Card(Rank.JACK, Suit.CLUBS), 0),
         #
@@ -63,12 +63,12 @@ def test_get_card_effective_rank_value():
     ]
 
     for test in test_data:
-        isko.set_game_type(test[0])
-        assert isko.get_card_effective_rank_value(test[1]) == test[2]
+        ruleset.set_game_type(test[0])
+        assert ruleset.get_card_effective_rank_value(test[1]) == test[2]
 
 
 def test_determine_trick_winner():
-    isko = ISkO()
+    ruleset = ISkO()
 
     test_data = [
         (
@@ -227,8 +227,8 @@ def test_determine_trick_winner():
     ]
 
     for test in test_data:
-        isko.set_game_type(test[0])
-        assert isko.determine_trick_winner(test[1]) == test[2]
+        ruleset.set_game_type(test[0])
+        assert ruleset.determine_trick_winner(test[1]) == test[2]
 
 
 def test_is_valid_card_play():
@@ -342,13 +342,12 @@ def test_is_valid_card_play():
             True,
         ),
     ]
-    rule_set = ISkO()
+    ruleset = ISkO()
 
     for test in test_data:
-        p = Player("test")
-        p.add_cards(test[1])
-        rule_set.set_game_type(test[0])
-        assert rule_set.is_valid_card_play(p, test[3], test[2]) == test[4]
+        p = Player("test", test[1])
+        ruleset.set_game_type(test[0])
+        assert ruleset.is_valid_card_play(p, test[3], test[2]) == test[4]
 
 
 def test_is_valid_game_declaration():

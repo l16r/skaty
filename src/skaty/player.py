@@ -13,10 +13,10 @@ class Player:
     role: Role
     _hand: list[Card]
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, hand: list[Card] = []):
         self._name = name
         self.role = Role.OPPOSITION
-        self._hand = list()
+        self._hand = hand
 
     @property
     def name(self) -> str:
