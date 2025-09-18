@@ -110,12 +110,12 @@ class ISkO(AbstractRuleSet):
         return (card.suit is trump) or (card.rank is Rank.JACK)
 
     def tops(self, cards: list[Card]) -> int:
-        if self.game_type() in (GameType.PASS, GameType.NULL):
+        if self.game_type() in (GameType.PASS, GameType.NULL) or len(cards) == 0:
             return 0
 
         allTops = [Card(Rank.JACK, suit) for suit in Suit]
         if (trump := self.trump_suit()) is not None:
-            allTops += [Card(rank, trump) for rank in Rank]
+            allTops += [Card(rank, trump) for rank in Rank if rank is not Rank.JACK]
         allTops = [ComparableCard(card, self) for card in allTops]
         sortedAllTops = sorted(allTops, reverse=True)
         sortedCards = sorted(
