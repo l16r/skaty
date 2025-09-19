@@ -27,7 +27,6 @@ class Trick:
     def is_complete(self):
         return len(self._cards) == 3
 
-    # TODO: test
     def get_winner(self, rule_set: AbstractRuleSet) -> int:
         """
         Get the index of the winner in the trick in the order the trick was played.
