@@ -110,8 +110,17 @@ class ISkO(AbstractRuleSet):
         return (card.suit is trump) or (card.rank is Rank.JACK)
 
     def tops(self, cards: list[Card]) -> int:
-        if self.game_type() in (GameType.PASS, GameType.NULL) or len(cards) == 0:
+        """
+        Calculates the amount of tops according to ISkO 2.3.
+
+        Raises:
+            ValueError: If the cards list is empty.
+        """
+        if self.game_type() in (GameType.PASS, GameType.NULL):
             return 0
+
+        if len(cards) == 0:
+            raise ValueError("The hand cannot be empty.")
 
         allTops = [Card(Rank.JACK, suit) for suit in Suit]
         if (trump := self.trump_suit()) is not None:
