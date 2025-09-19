@@ -216,7 +216,6 @@ class ISkO(AbstractRuleSet):
                     return False
         return True
 
-    # TODO: use information about players hand with tops to determine if bid is possible with this game without lying about tops
     def is_valid_game_declaration(
         self,
         player: Player,
@@ -260,7 +259,7 @@ class ISkO(AbstractRuleSet):
             )
 
         base_value = game_type.value
-        multiplier = 2
+        multiplier = 1
         if hand:
             multiplier += 1
         if schneider and hand:
@@ -270,4 +269,6 @@ class ISkO(AbstractRuleSet):
         if open and schwarz and schneider and hand:
             multiplier += 1
 
-        return bid <= multiplier * base_value
+        tops = self.tops(player.hand)
+
+        return bid <= (tops + multiplier) * base_value

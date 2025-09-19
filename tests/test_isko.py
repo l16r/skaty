@@ -353,6 +353,9 @@ def test_is_valid_card_play():
 def test_is_valid_game_declaration():
     test_cases = [
         (
+            Player(
+                "test", [Card(Rank.JACK, Suit.CLUBS)]
+            ),  # player (with optional hand)
             18,  # bid
             GameType.DIAMONDS,  # Game type
             False,  # hand
@@ -362,37 +365,111 @@ def test_is_valid_game_declaration():
             True,  # hand available
             True,  # expected
         ),
-        (9, GameType.DIAMONDS, False, False, False, False, False, False),
-        (-1, GameType.GRAND, False, False, False, False, False, False),
-        (-1, GameType.PASS, False, False, False, False, False, True),
-        (18, GameType.PASS, False, False, False, False, False, True),
-        (18, GameType.DIAMONDS, False, False, False, False, False, True),
-        (24, GameType.DIAMONDS, True, False, False, False, True, True),
-        (18, GameType.DIAMONDS, False, False, False, False, False, True),
-        (18, GameType.DIAMONDS, False, False, False, False, False, True),
+        (
+            Player("test", [Card(Rank.JACK, Suit.CLUBS)]),
+            9,
+            GameType.DIAMONDS,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+        ),
+        (Player("test"), -1, GameType.GRAND, False, False, False, False, False, False),
+        (Player("test"), -1, GameType.PASS, False, False, False, False, False, True),
+        (Player("test"), 18, GameType.PASS, False, False, False, False, False, True),
+        (
+            Player("test", [Card(Rank.JACK, Suit.CLUBS)]),
+            18,
+            GameType.DIAMONDS,
+            False,
+            False,
+            False,
+            False,
+            False,
+            True,
+        ),
+        (
+            Player("test", [Card(Rank.JACK, Suit.SPADES)]),
+            24,
+            GameType.DIAMONDS,
+            True,
+            False,
+            False,
+            False,
+            True,
+            True,
+        ),
+        (
+            Player("test", [Card(Rank.JACK, Suit.CLUBS)]),
+            18,
+            GameType.DIAMONDS,
+            False,
+            False,
+            False,
+            False,
+            False,
+            True,
+        ),
         #
-        (23, GameType.NULL, False, False, False, False, False, True),
-        (35, GameType.NULL, True, False, False, False, True, True),
-        (35, GameType.NULL, True, True, True, True, True, True),
-        (46, GameType.NULL, False, False, False, True, False, True),
-        (59, GameType.NULL, True, False, False, True, True, True),
-        (60, GameType.NULL, True, False, False, True, True, False),
+        (Player("test"), 23, GameType.NULL, False, False, False, False, False, True),
+        (Player("test"), 35, GameType.NULL, True, False, False, False, True, True),
+        (Player("test"), 35, GameType.NULL, True, True, True, True, True, True),
+        (Player("test"), 46, GameType.NULL, False, False, False, True, False, True),
+        (Player("test"), 59, GameType.NULL, True, False, False, True, True, True),
+        (Player("test"), 60, GameType.NULL, True, False, False, True, True, False),
+        #
+        (
+            Player("test", [Card(Rank.JACK, Suit.SPADES)]),
+            27,
+            GameType.DIAMONDS,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+        ),
+        (
+            Player("test", [Card(Rank.JACK, Suit.SPADES)]),
+            27,
+            GameType.DIAMONDS,
+            True,
+            False,
+            False,
+            False,
+            True,
+            True,
+        ),
+        (
+            Player("test", [Card(Rank.JACK, Suit.HEARTS)]),
+            27,
+            GameType.DIAMONDS,
+            False,
+            False,
+            False,
+            False,
+            False,
+            True,
+        ),
     ]
-    rule_set = ISkO()
+    ruleset = ISkO()
 
     for test in test_cases:
+        ruleset.set_game_type(test[2])
         assert (
-            rule_set.is_valid_game_declaration(
-                Player("test"),
+            ruleset.is_valid_game_declaration(
                 test[0],
                 test[1],
                 test[2],
                 test[3],
                 test[4],
-                test[5],
+                test[4],
                 test[6],
+                test[7],
             )
-            == test[7]
+            == test[8]
         )
 
     test_cases_exceptions = [
@@ -414,7 +491,7 @@ def test_is_valid_game_declaration():
 
     for test in test_cases_exceptions:
         with pytest.raises(InvalidPlayError):
-            rule_set.is_valid_game_declaration(
+            ruleset.is_valid_game_declaration(
                 Player("test"),
                 test[0],
                 test[1],
