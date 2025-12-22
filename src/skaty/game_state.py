@@ -168,6 +168,10 @@ class GameState:
         # TODO: implement phase changes. this may be done via receiving an argument to _advance_turn or by changing the phase in apply_action.
         if isinstance(action, GiveUp):
             self._phase = GamePhase.LOST
-
-        self._active_player = (self._active_player + 1) % 3
+        if isinstance(action, (DeclareBid, Listen, Pass)):
+            # TODO: Advance dependent on action (bid, listen, pass)
+            pass
+        if isinstance(action, PlayCard):
+            # Advance after playing a card
+            self._active_player = (self._active_player + 1) % 3
         pass
