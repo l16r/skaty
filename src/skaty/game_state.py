@@ -138,7 +138,7 @@ class GameState:
                 self._players[self._declarer].remove_card(cards[1])
             case DeclareBid(bid=value):
                 if not self._rule_set.is_valid_bid(
-                    player, action, self._get_trick_history()
+                    player, action, self._get_previous_bids()
                 ):
                     return False
                 self._bid = value
