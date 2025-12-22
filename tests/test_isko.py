@@ -4,7 +4,7 @@ from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import InvalidPlayError
 from skaty.isko import ISkO
 from skaty.player import Player
-from skaty.rules import GameType
+from skaty.rules import DeclareBid, GameType, Listen, Pass
 
 
 def test_get_card_effective_rank_value():
@@ -594,3 +594,120 @@ def test_tops():
     for test in test_cases:
         ruleset.set_game_type(test[0])
         assert ruleset.tops(test[1]) == test[2]
+
+
+def test_is_valid_bid():
+    p1 = Player("test_1")
+    p2 = Player("test_2")
+    p3 = Player("test_3")
+    test_data = [
+        (
+            [
+                (p1, DeclareBid(18)),
+                (p2, Listen()),
+                (p1, DeclareBid(20)),
+                (p2, Pass()),
+                (p3, Pass()),
+            ],
+            p1,
+            Pass(),
+            False,
+        ),
+        (
+            [
+                (p1, Pass()),
+                (p2, Pass()),
+            ],
+            p3,
+            Pass(),
+            True,
+        ),
+        (
+            [
+                (p1, DeclareBid(18)),
+                (p2, Listen()),
+                (p1, DeclareBid(20)),
+                (p2, Pass()),
+                (p3, Pass()),
+            ],
+            p1,
+            Pass(),
+            False,
+        ),
+        (
+            [
+                (p1, DeclareBid(18)),
+                (p2, Listen()),
+                (p1, DeclareBid(20)),
+                (p2, Pass()),
+                (p3, Pass()),
+            ],
+            p1,
+            DeclareBid(18),
+            False,
+        ),
+        (
+            [
+                (p1, DeclareBid(18)),
+                (p2, Listen()),
+                (p1, DeclareBid(20)),
+                (p2, Pass()),
+                (p3, Pass()),
+            ],
+            p1,
+            DeclareBid(20),
+            False,
+        ),
+        (
+            [
+                (p1, DeclareBid(18)),
+                (p2, Listen()),
+                (p1, DeclareBid(20)),
+                (p2, Pass()),
+                (p3, Pass()),
+            ],
+            p2,
+            DeclareBid(20),
+            False,
+        ),
+        (
+            [
+                (p1, Pass()),
+                (p3, DeclareBid(18)),
+                (p2, Pass()),
+            ],
+            p3,
+            DeclareBid(18),
+            False,
+        ),
+        (
+            [
+                (p1, Pass()),
+                (p3, DeclareBid(18)),
+                (p2, Pass()),
+            ],
+            p3,
+            DeclareBid(20),
+            True,
+        ),
+        (
+            [
+                (p1, Pass()),
+                (p3, DeclareBid(18)),
+                (p2, Pass()),
+            ],
+            p3,
+            Listen(),
+            False,
+        ),
+        ([], p1, Pass(), True),
+        ([], p1, Listen(), False),
+        ([], p1, DeclareBid(18), True),
+        ([], p1, DeclareBid(19), False),
+        ([], p1, DeclareBid(-1), False),
+    ]
+
+    ruleset = ISkO()
+
+    for test in test_data:
+        assert ruleset.is_valid_bid(test[1], test[2], test[0]) == test[3]

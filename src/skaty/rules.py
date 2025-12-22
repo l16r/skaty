@@ -159,7 +159,12 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def is_valid_bid(self, player: Player, bid: int) -> bool:
+    def is_valid_bid(
+        self,
+        player: Player,
+        bid: DeclareBid | Listen | Pass,
+        previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]],
+    ) -> bool:
         pass
 
     @abstractmethod

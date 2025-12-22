@@ -4,7 +4,15 @@ from skaty.cards import Card, Rank, Suit
 from skaty.comparable_card import ComparableCard
 from skaty.exceptions import InvalidPlayError
 from skaty.player import Player
-from skaty.rules import AbstractRuleSet, Action, GamePhase, GameType
+from skaty.rules import (
+    AbstractRuleSet,
+    Action,
+    DeclareBid,
+    GamePhase,
+    GameType,
+    Listen,
+    Pass,
+)
 
 # All bid values possible. The Null values and the grand and suit values multiplied with the range of their possible multipliers.
 VALID_BID_VALUES = [
@@ -202,9 +210,80 @@ class ISkO(AbstractRuleSet):
         # TODO: implement
         return True
 
-    def is_valid_bid(self, player: Player, bid: int) -> bool:
-        # TODO: implement
-        return True
+    def is_valid_bid(
+        self,
+        player: Player,
+        bid: DeclareBid | Listen | Pass,
+        previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]],
+    ) -> bool:
+        # Check if player has passed before
+        for b in previous_bids:
+            if b[0] == player and isinstance(b[1], Pass):
+                return False
+
+        # Gather all players
+        players = set(p for p, _ in previous_bids).union({player: []})
+        other_players = [p for p in players if p != player]
+
+        # Track pass/listen/bid for each player
+        player_bids = {p: [] for p in players}
+        for p, action in previous_bids:
+            player_bids[p].append(action)
+
+        # Count passes
+        passes = {
+            p: any(isinstance(a, Pass) for a in acts) for p, acts in player_bids.items()
+        }
+
+        # If both other players have passed
+        if (
+            len(other_players) == 2
+            and passes.get(other_players[0], False)
+            and passes.get(other_players[1], False)
+        ):
+            # If current player has already listened or declared a bid
+            has_listened = any(isinstance(a, Listen) for a in player_bids[player])
+            has_bid = any(isinstance(a, DeclareBid) for a in player_bids[player])
+            if has_listened or has_bid:
+                # Only allow a new bid if it is higher than all previous bids
+                if isinstance(bid, DeclareBid):
+                    max_bid = max(
+                        (
+                            a.bid
+                            for acts in player_bids.values()
+                            for a in acts
+                            if isinstance(a, DeclareBid)
+                        ),
+                        default=0,
+                    )
+                    return bid.bid > max_bid and bid.bid in VALID_BID_VALUES
+                # Listen or Pass not allowed
+                return False
+
+        # Only allow valid bid values
+        if isinstance(bid, DeclareBid):
+            # Must be higher than all previous bids
+            max_bid = max(
+                (
+                    a.bid
+                    for acts in player_bids.values()
+                    for a in acts
+                    if isinstance(a, DeclareBid)
+                ),
+                default=0,
+            )
+            return bid.bid > max_bid and bid.bid in VALID_BID_VALUES
+
+        # Listen is only allowed if there is an active bid
+        if isinstance(bid, Listen):
+            any_bid = any(
+                isinstance(a, DeclareBid) for acts in player_bids.values() for a in acts
+            )
+            return any_bid
+
+        # Pass is allowed unless already passed or forbidden by above rule
+        if isinstance(bid, Pass):
+            return True
 
     def is_valid_card_play(
         self, player: Player, card: Card, first_card: Optional[Card]
