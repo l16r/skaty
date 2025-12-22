@@ -11,6 +11,7 @@ from skaty.rules import (
     DeclareGame,
     DrawSkat,
     GamePhase,
+    GameType,
     GiveUp,
     Listen,
     Pass,
@@ -21,17 +22,26 @@ from skaty.trick import Trick
 
 class GameState:
     _players: list[Player]
+    # Currently active player. Do not confuse with _declarer.
     _active_player: int
     _trick: Trick
+    # Some ruleset to consider during game. Could be ISkO or some extension.
     _rule_set: AbstractRuleSet
     _trick_history: list[Trick]
+    # List of all actions with their player in chronological order.
     _action_history: list[tuple[Player, Action]]
+    # Highgest bid observed. Can also be calculated by considering _trick_history.
     _bid: int
     _phase: GamePhase
+    # None during GamePhase.DECLARATION between drawing skat and burying skat.
     _skat: Optional[tuple[Card, Card]]
+    # Points each player scored. Can also be calculated by considering _trick_history.
     _points: dict[Player, int]
     _hand_available: bool
+    # Contains the game result in GamePhase.WON or GamePhase.LOST. Can also be calculated by calling calculate_game_score().
     _game_result: int
+    # None if game was passed.
+    # Declarer, constant after game was bid. None if game is before GamePhase.BID or in GamePhase.PASSED.
     _declarer: Optional[int]
 
     def __init__(self, players: list[Player], rule_set: AbstractRuleSet):
@@ -103,6 +113,7 @@ class GameState:
                 if self._trick.is_complete():
                     points = self._trick.get_trick_points()
                     winner = self._trick.get_winner(self._rule_set)
+                    # TODO:  Calculate winning player using winner
                     # TODO: add points to winner (self._points)
             case DrawSkat():
                 assert self._skat is not None
