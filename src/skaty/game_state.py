@@ -142,13 +142,17 @@ class GameState:
                 ):
                     return False
                 self._bid = value
-                # TODO: implement bidding logic
             case Listen():
-                # TODO: implement bidding logic
-                pass
+                if not self._rule_set.is_valid_bid(
+                    player, action, self._get_previous_bids()
+                ):
+                    return False
+
             case Pass():
-                # TODO: implement bidding logic
-                pass
+                if not self._rule_set.is_valid_bid(
+                    player, action, self._get_previous_bids()
+                ):
+                    return False
             case DeclareGame(game_type, hand, schneider, schwarz, open):
                 assert self._skat is not None
 
