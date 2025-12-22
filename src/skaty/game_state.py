@@ -31,6 +31,8 @@ class GameState:
     _skat: Optional[tuple[Card, Card]]
     _points: dict[Player, int]
     _hand_available: bool
+    _game_result: int
+    _declarer: Optional[int]
 
     def __init__(self, players: list[Player], rule_set: AbstractRuleSet):
         """
@@ -51,6 +53,8 @@ class GameState:
         self._skat = None
         self._points = dict()
         self._hand_available = True
+        self._game_result = 0
+        self._declarer = None
 
     def calculate_game_score(self) -> tuple[Player, int]:
         """
@@ -103,17 +107,19 @@ class GameState:
             case DrawSkat():
                 assert self._skat is not None
                 assert len(self._skat) == 2
+                assert self._declarer is not None
                 self._hand_available = False
-                self._players[self._active_player].add_card(self._skat[0])
-                self._players[self._active_player].add_card(self._skat[1])
+                self._players[self._declarer].add_card(self._skat[0])
+                self._players[self._declarer].add_card(self._skat[1])
                 self._skat = None
             case BurySkat(cards):
                 assert self._skat is None
                 assert not self._hand_available
                 assert len(cards) == 2
+                assert self._declarer is not None
                 self._skat = (cards[0], cards[1])
-                self._players[self._active_player].remove_card(cards[0])
-                self._players[self._active_player].remove_card(cards[1])
+                self._players[self._declarer].remove_card(cards[0])
+                self._players[self._declarer].remove_card(cards[1])
             case DeclareBid(bid=value):
                 if not self._rule_set.is_valid_bid(player, value):
                     return False
@@ -140,13 +146,17 @@ class GameState:
                 ):
                     return False
             case GiveUp():
-                # TODO: implement giving up
+                player, score = self.calculate_game_score()
+                self._game_result = score
                 pass
 
-        self._advance_turn()
+        self._advance_turn(action)
         return True
 
-    def _advance_turn(self):
+    def _advance_turn(self, action: Action):
         # TODO: implement phase changes. this may be done via receiving an argument to _advance_turn or by changing the phase in apply_action.
+        if isinstance(action, GiveUp):
+            self._phase = GamePhase.LOST
+
         self._active_player = (self._active_player + 1) % 3
         pass
