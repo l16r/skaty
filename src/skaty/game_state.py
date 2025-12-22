@@ -72,7 +72,9 @@ class GameState:
             InvalidPlayError: If the player tries to play a card it does not have.
         """
         if not self._rule_set.is_valid_action(player, action, self._phase):
-            return False
+            raise InvalidGameStateError(
+                f"Action {action} is not possible during {self._phase}"
+            )
 
         match action:
             case DealCards():

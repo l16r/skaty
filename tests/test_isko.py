@@ -4,7 +4,17 @@ from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import InvalidPlayError
 from skaty.isko import ISkO
 from skaty.player import Player
-from skaty.rules import DeclareBid, GameType, Listen, Pass
+from skaty.rules import (
+    Action,
+    DealCards,
+    DeclareBid,
+    DeclareGame,
+    GamePhase,
+    GameType,
+    Listen,
+    Pass,
+    PlayCard,
+)
 
 
 def test_get_card_effective_rank_value():
@@ -711,3 +721,20 @@ def test_is_valid_bid():
 
     for test in test_data:
         assert ruleset.is_valid_bid(test[1], test[2], test[0]) == test[3]
+
+
+def test_is_valid_action():
+    p1 = Player("test_1")
+    p2 = Player("test_2")
+    p3 = Player("test_3")
+    test_data = [
+        (p1, DealCards(), GamePhase.PRE_DEAL, True),
+        (p2, DealCards(), GamePhase.PRE_DEAL, True),
+        (p1, PlayCard(Card(Rank.ACE, Suit.CLUBS)), GamePhase.DECLARATION, False),
+        (p1, DeclareGame(GameType.CLUBS, False), GamePhase.DECLARATION, True),
+    ]
+
+    ruleset = ISkO()
+
+    for test in test_data:
+        assert ruleset.is_valid_action(test[0], test[1], test[2]) == test[3]

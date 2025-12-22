@@ -7,11 +7,17 @@ from skaty.player import Player
 from skaty.rules import (
     AbstractRuleSet,
     Action,
+    BurySkat,
+    DealCards,
     DeclareBid,
+    DeclareGame,
+    DrawSkat,
     GamePhase,
     GameType,
+    GiveUp,
     Listen,
     Pass,
+    PlayCard,
 )
 
 # All bid values possible. The Null values and the grand and suit values multiplied with the range of their possible multipliers.
@@ -207,8 +213,26 @@ class ISkO(AbstractRuleSet):
         return 0
 
     def is_valid_action(self, player: Player, action: Action, phase: GamePhase) -> bool:
-        # TODO: implement
-        return True
+        if isinstance(action, DealCards):
+            return phase in [GamePhase.PRE_DEAL]
+        if isinstance(action, PlayCard):
+            return phase in [GamePhase.PLAYING]
+        if isinstance(action, DrawSkat):
+            return phase in [GamePhase.DECLARATION]
+        if isinstance(action, BurySkat):
+            return phase in [GamePhase.DECLARATION]
+        if isinstance(action, DeclareGame):
+            return phase in [GamePhase.DECLARATION]
+        if isinstance(action, DeclareBid):
+            return phase in [GamePhase.BID]
+        if isinstance(action, Listen):
+            return phase in [GamePhase.BID]
+        if isinstance(action, Pass):
+            return phase in [GamePhase.PRE_DEAL]
+        if isinstance(action, GiveUp):
+            return phase in [GamePhase.PLAYING]
+
+        return False
 
     def is_valid_bid(
         self,
