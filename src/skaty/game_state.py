@@ -1,6 +1,6 @@
 from typing import Optional
 from skaty.cards import Card, create_deck, shuffle_deck
-from skaty.exceptions import InvalidGameStateError, InvalidPlayError
+from skaty.exceptions import InvalidActionError, InvalidGameStateError, InvalidPlayError
 from skaty.player import Player
 from skaty.rules import (
     AbstractRuleSet,
@@ -84,10 +84,15 @@ class GameState:
 
         Raises:
             InvalidPlayError: If the player tries to play a card it does not have.
+            InvalidActionError: If the player is not active.
         """
         if not self._rule_set.is_valid_action(player, action, self._phase):
             raise InvalidGameStateError(
                 f"Action {action} is not possible during {self._phase}"
+            )
+        if player is not self._active_player:
+            raise InvalidActionError(
+                f"Player {player} can not {action} because he is not active."
             )
 
         match action:
@@ -132,7 +137,9 @@ class GameState:
                 self._players[self._declarer].remove_card(cards[0])
                 self._players[self._declarer].remove_card(cards[1])
             case DeclareBid(bid=value):
-                if not self._rule_set.is_valid_bid(player, value):
+                if not self._rule_set.is_valid_bid(
+                    player, action, self._get_trick_history()
+                ):
                     return False
                 self._bid = value
                 # TODO: implement bidding logic
@@ -175,3 +182,17 @@ class GameState:
             # Advance after playing a card
             self._active_player = (self._active_player + 1) % 3
         pass
+
+    def _get_previous_bids(self) -> list[tuple[Player, DeclareBid | Listen | Pass]]:
+        """
+        Return the previous bids (filters _action_history).
+        """
+        trick_history: list[tuple[Player, DeclareBid | Listen | Pass]] = []
+        for p, a in self._action_history:
+            if (
+                isinstance(a, DeclareBid)
+                or isinstance(a, Listen)
+                or isinstance(a, Pass)
+            ):
+                trick_history.append((p, a))
+        return trick_history

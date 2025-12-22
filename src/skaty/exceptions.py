@@ -16,5 +16,9 @@ class InvalidBidError(SkatyError):
     """Raised when an illegal bid is made."""
 
 
+class InvalidActionError(SkatyError):
+    """Raised when an illegal action is tried (e.g. acting when not being the active player)."""
+
+
 class IncompatibleRulesError(SkatyError):
     """Raised when two rule sets collide (e.g. comparing two cards based on different rule sets)."""
