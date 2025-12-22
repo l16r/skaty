@@ -31,7 +31,7 @@ class GameState:
     # List of all actions with their player in chronological order.
     _action_history: list[tuple[Player, Action]]
     # Highgest bid observed. Can also be calculated by considering _trick_history.
-    _bid: int
+    _bid: Optional[int]
     _phase: GamePhase
     # None during GamePhase.DECLARATION between drawing skat and burying skat.
     _skat: Optional[tuple[Card, Card]]
@@ -57,7 +57,7 @@ class GameState:
         self._active_player = 0
         self._trick = Trick()
         self._rule_set = rule_set
-        self._bid = 0
+        self._bid = None
         self._trick_history = list()
         self._phase = GamePhase.PRE_DEAL
         self._skat = None
@@ -155,6 +155,7 @@ class GameState:
                     return False
             case DeclareGame(game_type, hand, schneider, schwarz, open):
                 assert self._skat is not None
+                assert self._bid is not None
 
                 if not self._rule_set.is_valid_game_declaration(
                     self._players[self._active_player],
@@ -170,7 +171,6 @@ class GameState:
             case GiveUp():
                 player, score = self.calculate_game_score()
                 self._game_result = score
-                pass
 
         self._action_history.append((player, action))
         self._advance_turn(action)
@@ -183,10 +183,32 @@ class GameState:
         if isinstance(action, (DeclareBid, Listen, Pass)):
             # TODO: Advance dependent on action (bid, listen, pass)
             pass
+        if isinstance(action, Pass):
+            # Initial to -1, because the current pass is already included in the previous bids as the action history is updated before calling _advance_turn.
+            passes = -1
+            passed_players = set()
+            for p in self._get_previous_bids():
+                if p[1] is Pass:
+                    passes += 1
+                    passed_players.add(p[0])
+            if passes == 1 and self._bid is not None:
+                # Passed twice and one player bid.
+                # Get the player that bid. He is the declarer now.
+                dec = set(self._players).difference(passed_players).pop()
+                self._declarer = self._players.index(dec)
+                self._phase = GamePhase.DECLARATION
+            if passes == 2:
+                # Passed thrice. Game is passed.
+                self._phase = GamePhase.PASSED
         if isinstance(action, PlayCard):
             # Advance after playing a card
             self._active_player = (self._active_player + 1) % 3
-        pass
+        if isinstance(action, DealCards):
+            self._phase = GamePhase.BID
+        if isinstance(action, DeclareGame):
+            self._phase = GamePhase.PLAYING
+            # Player 0 was dealt cards first.
+            self._active_player = 0
 
     def _get_previous_bids(self) -> list[tuple[Player, DeclareBid | Listen | Pass]]:
         """
