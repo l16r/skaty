@@ -168,6 +168,7 @@ class GameState:
                 self._game_result = score
                 pass
 
+        self._action_history.append((player, action))
         self._advance_turn(action)
         return True
 
