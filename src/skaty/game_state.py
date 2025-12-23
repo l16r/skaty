@@ -177,38 +177,77 @@ class GameState:
         return True
 
     def _advance_turn(self, action: Action):
-        # TODO: implement phase changes. this may be done via receiving an argument to _advance_turn or by changing the phase in apply_action.
         if isinstance(action, GiveUp):
             self._phase = GamePhase.LOST
-        if isinstance(action, (DeclareBid, Listen, Pass)):
-            # TODO: Advance dependent on action (bid, listen, pass)
-            pass
-        if isinstance(action, Pass):
-            # Initial to -1, because the current pass is already included in the previous bids as the action history is updated before calling _advance_turn.
-            passes = -1
-            passed_players = set()
-            for p in self._get_previous_bids():
-                if p[1] is Pass:
-                    passes += 1
-                    passed_players.add(p[0])
-            if passes == 1 and self._bid is not None:
-                # Passed twice and one player bid.
-                # Get the player that bid. He is the declarer now.
-                dec = set(self._players).difference(passed_players).pop()
-                self._declarer = self._players.index(dec)
-                self._phase = GamePhase.DECLARATION
-            if passes == 2:
-                # Passed thrice. Game is passed.
-                self._phase = GamePhase.PASSED
+            return
+
+        if self._phase == GamePhase.BID:
+            self._advance_bidding(action)
+            return
+
         if isinstance(action, PlayCard):
-            # Advance after playing a card
             self._active_player = (self._active_player + 1) % 3
+            return
+
         if isinstance(action, DealCards):
             self._phase = GamePhase.BID
+            self._active_player = 0  # Forehand starts bidding
+            return
+
         if isinstance(action, DeclareGame):
             self._phase = GamePhase.PLAYING
-            # Player 0 was dealt cards first.
             self._active_player = 0
+            return
+
+    def _advance_bidding(self, action: Action):
+        """
+        Handle Skat bidding (geben-hören-sagen-weitersagen) phase.
+        """
+        bids = self._get_previous_bids()
+        players = self._players
+        passed = set(p for p, a in bids if isinstance(a, Pass))
+        in_bidding = [p for p in players if p not in passed]
+
+        # If two players have passed, bidding is over
+        if len(passed) == 2:
+            remaining = [p for p in players if p not in passed]
+            if remaining:
+                self._declarer = players.index(remaining[0])
+                self._phase = GamePhase.DECLARATION
+            else:
+                self._phase = GamePhase.PASSED
+            return
+
+        # If all three have passed (no bid), game is passed
+        if len(bids) >= 3 and all(isinstance(a, Pass) for _, a in bids[-3:]):
+            self._phase = GamePhase.PASSED
+            return
+
+        # Bidding sequence: 0 vs 1, then winner vs 2
+        # Determine which round of bidding we are in
+        # If both 0 and 1 are still in, they bid against each other
+        if players[0] in in_bidding and players[1] in in_bidding:
+            # Alternate between 0 and 1
+            self._active_player = 1 if self._active_player == 0 else 0
+            return
+        # If only one of 0 or 1 is left, they face dealer (2)
+        if players[0] in in_bidding and players[1] not in in_bidding:
+            main = 0
+        elif players[1] in in_bidding and players[0] not in in_bidding:
+            main = 1
+        else:
+            main = None
+        if main is not None:
+            # Alternate between main and dealer (2)
+            if self._active_player != 2:
+                self._active_player = 2
+            else:
+                self._active_player = main
+            return
+        # If only one left, should be handled above
+        raise InvalidActionError("Bidding logic logic")
+        # Fallback: just rotate
+        # self._active_player = (self._active_player + 1) % 3
 
     def _get_previous_bids(self) -> list[tuple[Player, DeclareBid | Listen | Pass]]:
         """
