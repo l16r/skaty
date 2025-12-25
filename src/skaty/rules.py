@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum, IntEnum
-from typing import Optional
+from typing import Literal, Optional, Union
 from dataclasses import dataclass
 
 from skaty.cards import Card, Suit
@@ -155,7 +155,11 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def is_valid_action(self, player: Player, action: Action, phase: GamePhase) -> bool:
+    def is_valid_action(
+        self,
+        action: Action,
+        phase: GamePhase,
+    ) -> bool:
         pass
 
     @abstractmethod

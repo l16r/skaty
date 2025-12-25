@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional, Union
 
 from skaty.cards import Card, Rank, Suit
 from skaty.comparable_card import ComparableCard
@@ -212,7 +212,11 @@ class ISkO(AbstractRuleSet):
         # TODO: implement
         return 0
 
-    def is_valid_action(self, player: Player, action: Action, phase: GamePhase) -> bool:
+    def is_valid_action(
+        self,
+        action: Action,
+        phase: GamePhase,
+    ) -> bool:
         if isinstance(action, DealCards):
             return phase in [GamePhase.PRE_DEAL]
         if isinstance(action, PlayCard):
@@ -228,7 +232,7 @@ class ISkO(AbstractRuleSet):
         if isinstance(action, Listen):
             return phase in [GamePhase.BID]
         if isinstance(action, Pass):
-            return phase in [GamePhase.PRE_DEAL]
+            return phase in [GamePhase.PRE_DEAL, GamePhase.BID]
         if isinstance(action, GiveUp):
             return phase in [GamePhase.PLAYING]
 

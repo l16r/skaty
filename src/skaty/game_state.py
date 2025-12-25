@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional, Union
 from skaty.cards import Card, create_deck, shuffle_deck
 from skaty.exceptions import InvalidActionError, InvalidGameStateError, InvalidPlayError
 from skaty.player import Player
@@ -54,10 +54,11 @@ class GameState:
         if len(players) != 3:
             raise InvalidGameStateError("A game must consist of 3 players.")
         self._players = players
-        self._active_player = 0
+        self._active_player = 2
         self._trick = Trick()
         self._rule_set = rule_set
         self._bid = None
+        self._action_history = []
         self._trick_history = list()
         self._phase = GamePhase.PRE_DEAL
         self._skat = None
@@ -86,14 +87,48 @@ class GameState:
             InvalidPlayError: If the player tries to play a card it does not have.
             InvalidActionError: If the player is not active.
         """
-        if not self._rule_set.is_valid_action(player, action, self._phase):
+        if not self._rule_set.is_valid_action(action, self._phase):
             raise InvalidGameStateError(
                 f"Action {action} is not possible during {self._phase}"
             )
-        if player is not self._active_player:
+        if isinstance(
+            action, (DeclareBid, Listen, Pass)
+        ) and not self._rule_set.is_valid_bid(
+            player, action, self._get_previous_bids()
+        ):
+            raise InvalidActionError(f"Bid {action} is not possible.")
+        if player is not self._players[self._active_player]:
             raise InvalidActionError(
                 f"Player {player} can not {action} because he is not active."
             )
+
+        # --- Enforce listen-only and declare-only in weitersagen (middlehand vs dealer) ---
+        # Maybe refactor is_valid_action to receive more args so that this condition can be integrated
+        if self._phase == GamePhase.BID:
+            bids = self._get_previous_bids()
+            players = self._players
+            passed = set(p for p, a in bids if isinstance(a, Pass))
+            in_bidding = [p for p in players if p not in passed]
+            # Only middlehand and dealer left, forehand out
+            if (
+                players[0] in passed
+                and players[1] in in_bidding
+                and players[2] in in_bidding
+                and len(in_bidding) == 2
+            ):
+                if player is players[1] and not isinstance(action, (Listen, Pass)):
+                    raise InvalidActionError(
+                        "Middlehand can only Listen or Pass after forehand passes and backhand is at weitersagen stage."
+                    )
+                if player is players[2]:
+                    if isinstance(action, Listen):
+                        raise InvalidActionError(
+                            "Dealer cannot Listen after middlehand passes; only DeclareBid or Pass is allowed."
+                        )
+                    if not isinstance(action, (DeclareBid, Pass)):
+                        raise InvalidActionError(
+                            "Dealer can only DeclareBid or Pass in weitersagen stage."
+                        )
 
         match action:
             case DealCards():
@@ -191,7 +226,7 @@ class GameState:
 
         if isinstance(action, DealCards):
             self._phase = GamePhase.BID
-            self._active_player = 0  # Forehand starts bidding
+            self._active_player = 1  # Middlehand starts bidding
             return
 
         if isinstance(action, DeclareGame):
@@ -201,53 +236,129 @@ class GameState:
 
     def _advance_bidding(self, action: Action):
         """
-        Handle Skat bidding (geben-hören-sagen-weitersagen) phase.
+        Clean, explicit Skat bidding (geben-hören-sagen-weitersagen) logic.
         """
         bids = self._get_previous_bids()
         players = self._players
         passed = set(p for p, a in bids if isinstance(a, Pass))
         in_bidding = [p for p in players if p not in passed]
+        print("-" * 20)
+        print(f"active player: {players[self._active_player]} ({self._active_player})")
+        print(f"Highest bid: {self._bid} -- {bids=}")
+        print(f"Player {self._active_player} plays {action}")
+        print(f"{passed=}")
+        print(f"{in_bidding=}")
 
-        # If two players have passed, bidding is over
-        if len(passed) == 2:
-            remaining = [p for p in players if p not in passed]
-            if remaining:
-                self._declarer = players.index(remaining[0])
-                self._phase = GamePhase.DECLARATION
-            else:
-                self._phase = GamePhase.PASSED
-            return
-
-        # If all three have passed (no bid), game is passed
-        if len(bids) >= 3 and all(isinstance(a, Pass) for _, a in bids[-3:]):
+        # All passed: game is passed
+        if len(bids) >= 3 and len([a for _, a in bids if isinstance(a, Pass)]) == 3:
+            print("passing game")
             self._phase = GamePhase.PASSED
             return
 
-        # Bidding sequence: 0 vs 1, then winner vs 2
-        # Determine which round of bidding we are in
-        # If both 0 and 1 are still in, they bid against each other
-        if players[0] in in_bidding and players[1] in in_bidding:
-            # Alternate between 0 and 1
-            self._active_player = 1 if self._active_player == 0 else 0
+        # Only one left: they are declarer, except the case in which forehand has not said anything yet
+        if len(in_bidding) == 1 and players[0] in passed:
+            self._declarer = players.index(in_bidding[0])
+            self._phase = GamePhase.DECLARATION
             return
-        # If only one of 0 or 1 is left, they face dealer (2)
-        if players[0] in in_bidding and players[1] not in in_bidding:
-            main = 0
-        elif players[1] in in_bidding and players[0] not in in_bidding:
-            main = 1
-        else:
-            main = None
-        if main is not None:
-            # Alternate between main and dealer (2)
-            if self._active_player != 2:
-                self._active_player = 2
+
+        # --- Bidding stages ---
+        # 1. geben/hören: 0 vs 1
+        if (
+            players[0] in in_bidding
+            and players[1] in in_bidding
+            and players[2] in in_bidding
+        ):
+            print("geben hören")
+            # Table order: 1 (middlehand) starts after deal
+            self._active_player = 0 if self._active_player == 1 else 1
+            return
+
+        print("weitersagen")
+        # 2. sagen/weitersagen: winner vs 2
+        # If only two left, always alternate between them
+        if len(in_bidding) == 2:
+            # If forehand is out, only middlehand and dealer left
+            if (
+                players[0] in passed
+                and players[1] in in_bidding
+                and players[2] in in_bidding
+            ):
+                print(
+                    f"forehand passed, middlehand and dealer left {self._active_player=}"
+                )
+                # Middlehand can only Listen, not bid
+                if self._active_player == 0:
+                    # Backhand must declare now (weitersagen)
+                    assert isinstance(action, Pass)
+                    # Backhand must then declare, middlehand is listening
+                    self._active_player = 2
+                elif self._active_player == 1:
+                    print(
+                        f"{players[self._active_player]} - {action} {isinstance(action, DeclareBid)}"
+                    )
+                    if isinstance(action, DeclareBid):
+                        raise InvalidActionError(
+                            "Middlehand can only Listen/Pass after forehand passes and backhand is at weitersagen stage."
+                        )
+                    self._active_player = 2
+                elif self._active_player == 2:
+                    if not isinstance(action, (DeclareBid, Pass)):
+                        raise InvalidActionError(
+                            "Backhand can only Declare/Pass after forehand passes and backhand is at weitersagen stage."
+                        )
+                    self._active_player = 1
+                return
+            # If middlehand is out, only forehand and dealer left
+            elif (
+                players[1] in passed
+                and players[0] in in_bidding
+                and players[2] in in_bidding
+            ):
+                print("middlehand out")
+                # Alternate between 0 and 2
+                if self._active_player == 0:
+                    if not isinstance(action, (Listen, Pass)):
+                        raise InvalidActionError(
+                            "Forehand can only Listen/Pass after middlehand passes and backhand is at weitersagen stage."
+                        )
+                    self._active_player = 2
+                elif self._active_player == 1:
+                    if not isinstance(action, Pass):
+                        raise InvalidGameStateError("Middlehand should pass now.")
+                    self._active_player = 2
+                elif self._active_player == 2:
+                    if not isinstance(action, (DeclareBid, Pass)):
+                        raise InvalidActionError(
+                            "Backhand can only Declare/Pass after middlehand passes and forehand is still listening."
+                        )
+                    self._active_player = 0
+                return
+            # If dealer is out, only forehand and middlehand left (should not happen in Skat)
+            elif (
+                players[2] in passed
+                and players[0] in in_bidding
+                and players[1] in in_bidding
+            ):
+                raise InvalidGameStateError(
+                    "Dealer is out, but forehand and middlehand are not. This should not have happened."
+                )
+                # self._active_player = 1 if self._active_player == 0 else 0
+                # return
             else:
-                self._active_player = main
+                raise InvalidActionError(
+                    "Bidding logic error: unexpected two-player state."
+                )
+        if len(bids) == 2 and len(in_bidding) == 1:
+            self._active_player = 0
             return
-        # If only one left, should be handled above
-        raise InvalidActionError("Bidding logic logic")
-        # Fallback: just rotate
-        # self._active_player = (self._active_player + 1) % 3
+        if len(in_bidding) == 1:
+            print("one left, has said one thing other than pass before")
+            self._phase = GamePhase.DECLARATION
+            self._declarer = self._players.index(in_bidding[0])
+            self._active_player = self._declarer
+            return
+
+        raise InvalidActionError("Bidding logic error: no valid next player.")
 
     def _get_previous_bids(self) -> list[tuple[Player, DeclareBid | Listen | Pass]]:
         """

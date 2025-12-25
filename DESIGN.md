@@ -73,12 +73,12 @@ abstract class AbstractRuleSet {
   + {abstract} get_card_effective_rank_value(card: Card): int
   + {abstract} determine_trick_winner(cards_in_trick: list[Card]): Player
   + {abstract} calculate_game_score(players: list[Player], tricks: list[Trick]): int
-  + {abstract} is_valid_action(player: Player, action: Action): bool
+  + {abstract} is_valid_action(action: Action, phase: GamePhase): bool
   + {abstract} is_valid_bid(player: Player, bid: DeclareBid | Listen | Pass, previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]]): bool
   + {abstract} is_valid_card_play(player: Player, card: Card, first_card: Optional[Card]): bool
   + {abstract} is_valid_game_declaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool, hand_available: bool): bool
 }
-class StandardSkatRuleSet {
+class ISkO {
 }
 class GameState {
   - players: list[Player]
@@ -194,7 +194,7 @@ GameState "1" *-- "0..*" Trick : history
 GameState "1" -- "0..*" Action: consists of
 GameState "0..*" -- "1" GamePhase: is in
 
-StandardSkatRuleSet ..|> AbstractRuleSet
+ISkO ..|> AbstractRuleSet
 
 Action "0..*" -- "1" ActionType: type
 PlayCard  --|> Action

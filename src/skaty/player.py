@@ -18,6 +18,12 @@ class Player:
         self.role = Role.OPPOSITION
         self._hand = hand
 
+    def __str__(self) -> str:
+        return self._name
+
+    def __repr__(self) -> str:
+        return self._name
+
     @property
     def name(self) -> str:
         return self._name
