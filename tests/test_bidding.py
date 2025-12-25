@@ -84,7 +84,6 @@ def test_bidding_forehand_vs_dealer():
         game.apply_action(players[0], DeclareBid(23))
     with pytest.raises(InvalidActionError):
         # Middlehand can not bid, but only listen now
-        print(f"phase: {game._phase}")
         game.apply_action(players[1], DeclareBid(22))
     game.apply_action(players[1], Listen())
     game.apply_action(players[2], DeclareBid(22))

@@ -12,6 +12,7 @@ from skaty.rules import (
     GameType,
     Listen,
     Pass,
+    PlayCard,
 )
 
 
@@ -35,3 +36,4 @@ def test_valid_game():
         game.apply_action(p2, DeclareGame(GameType.CLUBS, False))
     game.apply_action(p2, BurySkat((p2.hand[0], p2.hand[1])))
     game.apply_action(p2, DeclareGame(GameType.GRAND, False))
+    game.apply_action(p0, PlayCard(p0.hand[0]))

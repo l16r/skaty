@@ -252,21 +252,18 @@ class GameState:
         passed = set(p for p, a in bids if isinstance(a, Pass))
         in_bidding = [p for p in players if p not in passed]
 
-        print(f"{self._active_player=} {in_bidding=} {passed=}")
-
         # All passed: game is passed
         if len(bids) >= 3 and len([a for _, a in bids if isinstance(a, Pass)]) == 3:
-            print("passing game")
+            if self._log:
+                print("Passing game")
             self._phase = GamePhase.PASSED
             return
 
         # Only one left: they are declarer, except the case in which forehand has not said anything yet
         if len(in_bidding) == 1 and players[0] in passed:
-            print("only one left")
             self._declarer = players.index(in_bidding[0])
             self._active_player = self._declarer
             self._phase = GamePhase.DECLARATION
-            print(f"active {self._active_player}, {self._declarer}, {in_bidding[0]=}")
             return
 
         # --- Bidding stages ---
@@ -347,7 +344,6 @@ class GameState:
                 raise InvalidActionError(
                     "Bidding logic error: unexpected two-player state."
                 )
-        print("one left")
         if len(bids) == 2 and len(in_bidding) == 1:
             self._active_player = 0
             return
