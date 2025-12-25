@@ -211,6 +211,7 @@ class GameState:
                     self._hand_available,
                 ):
                     return False
+                self._rule_set.set_game_type(game_type)
             case GiveUp():
                 player, score = self.calculate_game_score()
                 self._game_result = score
