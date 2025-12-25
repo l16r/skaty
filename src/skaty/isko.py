@@ -148,15 +148,9 @@ class ISkO(AbstractRuleSet):
         withTops = sortedAllTops[0] == sortedCards[0]
         counter = 0
 
-        print(f"sortedAllTops: {sortedAllTops}")
-        print(f"sortedCards: {sortedCards}")
-        print(f"withTops: {withTops}")
-
         if withTops:
             for c in zip(sortedAllTops, sortedCards):
-                print(f"comparing: {c}")
                 if c[0] != c[1]:
-                    print("break with tops")
                     break
                 counter += 1
         else:

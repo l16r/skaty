@@ -92,6 +92,9 @@ class GameState {
   - skat: Optional[tuple[Card, Card]]
   - points: dict[Player, int]
   - hand_available: bool
+  - game_result: int
+  - declarer: int
+  - log: bool
   + is_game_over(): bool
   + possible_actions(player: Player): list[ActionType]
   + calculate_game_score(): int
