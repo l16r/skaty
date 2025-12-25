@@ -162,6 +162,7 @@ class GameState:
                     winner = self._trick.get_winner(self._rule_set)
                     # TODO:  Calculate winning player using winner
                     # TODO: add points to winner (self._points)
+                    self._trick = Trick()
             case DrawSkat():
                 assert self._skat is not None
                 assert len(self._skat) == 2
