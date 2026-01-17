@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Optional
 
 from skaty.cards import Card
 
@@ -13,10 +14,10 @@ class Player:
     role: Role
     _hand: list[Card]
 
-    def __init__(self, name: str, hand: list[Card] = []):
+    def __init__(self, name: str, hand: Optional[list[Card]] = None):
         self._name = name
         self.role = Role.OPPOSITION
-        self._hand = hand
+        self._hand = hand if hand is not None else []
 
     def __str__(self) -> str:
         return self._name
