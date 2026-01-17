@@ -27,6 +27,7 @@ class GameState:
     _trick: Trick
     # Some ruleset to consider during game. Could be ISkO or some extension.
     _rule_set: AbstractRuleSet
+    _game_type: GameType
     _trick_history: list[Trick]
     # List of all actions with their player in chronological order.
     _action_history: list[tuple[Player, Action]]
@@ -43,6 +44,7 @@ class GameState:
     # None if game was passed.
     # Declarer, constant after game was bid. None if game is before GamePhase.BID or in GamePhase.PASSED.
     _declarer: Optional[int]
+    _declaration: tuple[bool, bool, bool, bool]
     _log: bool
 
     def __init__(
@@ -66,6 +68,9 @@ class GameState:
         self._phase = GamePhase.PRE_DEAL
         self._skat = None
         self._points = dict()
+        self._points[players[0]] = 0
+        self._points[players[1]] = 0
+        self._points[players[2]] = 0
         self._hand_available = True
         self._game_result = 0
         self._declarer = None
@@ -159,9 +164,16 @@ class GameState:
                 self._trick.add_card(played_card)
                 if self._trick.is_complete():
                     points = self._trick.get_trick_points()
-                    winner = self._trick.get_winner(self._rule_set)
-                    # TODO:  Calculate winning player using winner
-                    # TODO: add points to winner (self._points)
+                    winner = self._trick.get_winner(
+                        self._rule_set
+                    )  # index in trick order
+                    current_player = self._players.index(player)  # last to play
+                    first_player = (current_player - 2) % 3
+                    winner_player_index = (first_player + winner) % 3
+                    winner_player = self._players[winner_player_index]
+                    # Add points to winner
+                    self._points[winner_player] += points
+                    # Reset trick
                     self._trick = Trick()
             case DrawSkat():
                 assert self._skat is not None
@@ -213,6 +225,8 @@ class GameState:
                 ):
                     return False
                 self._rule_set.set_game_type(game_type)
+                self._game_type = game_type
+                self._declaration = (hand, schneider, schwarz, open)
             case GiveUp():
                 player, score = self.calculate_game_score()
                 self._game_result = score
