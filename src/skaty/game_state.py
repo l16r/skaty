@@ -31,7 +31,7 @@ class GameState:
     _trick_history: list[Trick]
     # List of all actions with their player in chronological order.
     _action_history: list[tuple[Player, Action]]
-    # Highgest bid observed. Can also be calculated by considering _trick_history.
+    # Highgest bid observed. Can also be calculated by considering _action_history.
     _bid: Optional[int]
     _phase: GamePhase
     # None during GamePhase.DECLARATION between drawing skat and burying skat.
@@ -189,8 +189,8 @@ class GameState:
                 assert len(cards) == 2
                 assert self._declarer is not None
                 self._skat = (cards[0], cards[1])
-                self._players[self._declarer].remove_card(cards[0])
-                self._players[self._declarer].remove_card(cards[1])
+                self._players[self._declarer].play_card(cards[0])
+                self._players[self._declarer].play_card(cards[1])
             case DeclareBid(bid=value):
                 if not self._rule_set.is_valid_bid(
                     player, action, self._get_previous_bids()
@@ -374,12 +374,12 @@ class GameState:
         """
         Return the previous bids (filters _action_history).
         """
-        trick_history: list[tuple[Player, DeclareBid | Listen | Pass]] = []
+        bid_history: list[tuple[Player, DeclareBid | Listen | Pass]] = []
         for p, a in self._action_history:
             if (
                 isinstance(a, DeclareBid)
                 or isinstance(a, Listen)
                 or isinstance(a, Pass)
             ):
-                trick_history.append((p, a))
-        return trick_history
+                bid_history.append((p, a))
+        return bid_history
