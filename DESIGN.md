@@ -58,7 +58,7 @@ class Player {
   + @property hand(): list[Card]
   + add_card(card: Card)
   + add_cards(cards: list[Card])
-  + remove_card(card: Card)
+  + play_card(card: Card)
 }
 enum Role {
   OPPOSITION

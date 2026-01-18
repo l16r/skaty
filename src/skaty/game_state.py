@@ -160,7 +160,7 @@ class GameState:
                     raise InvalidPlayError(
                         f"Can not play {played_card}, because it is illegal."
                     )
-                player.remove_card(played_card)
+                player.play_card(played_card)
                 self._trick.add_card(played_card)
                 if self._trick.is_complete():
                     points = self._trick.get_trick_points()
