@@ -1,7 +1,12 @@
 from abc import ABC, abstractmethod
 from enum import Enum, IntEnum
-from typing import Literal, Optional, Union
+from typing import Optional
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+# We only need Trick for typing. Import in this condition to avoid circular imports.
+if TYPE_CHECKING:
+    from skaty.trick import Trick
 
 from skaty.cards import Card, Suit
 from skaty.player import Player
@@ -151,7 +156,20 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def calculate_game_score(self) -> int:
+    def calculate_game_score(
+        self,
+        players: list[Player],
+        declarer: int,
+        points: dict[Player, int],
+        tricks: list[tuple[Trick, Player]],
+        game_type: GameType,
+        bid: int,
+        skat: tuple[Card, Card],
+        hand: bool = False,
+        schneider_announced: bool = False,
+        schwarz_announced: bool = False,
+        ouvert: bool = False,
+    ) -> int:
         pass
 
     @abstractmethod

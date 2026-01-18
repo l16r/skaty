@@ -44,6 +44,7 @@ class GameState:
     # None if game was passed.
     # Declarer, constant after game was bid. None if game is before GamePhase.BID or in GamePhase.PASSED.
     _declarer: Optional[int]
+    # The game declared (hand, schneider announced, schwarz announced, ouvert)
     _declaration: tuple[bool, bool, bool, bool]
     _log: bool
 
@@ -76,13 +77,26 @@ class GameState:
         self._declarer = None
         self._log = log
 
-    def calculate_game_score(self) -> tuple[Player, int]:
+    def calculate_game_score(self) -> int:
         """
         Calculates the points a player gained or lost according to his declaration.
         """
-        return (
-            self._players[self._active_player],
-            self._rule_set.calculate_game_score(),
+        if self._declarer is None or self._bid is None or self._skat is None:
+            raise InvalidGameStateError(
+                "Unable to calculate game score if no game has been declared."
+            )
+        return self._rule_set.calculate_game_score(
+            self._players,
+            self._declarer,
+            self._points,
+            self._trick_history,
+            self._game_type,
+            self._bid,
+            self._skat,
+            self._declaration[0],
+            self._declaration[1],
+            self._declaration[2],
+            self._declaration[3],
         )
 
     def apply_action(self, player: Player, action: Action) -> bool:
@@ -162,6 +176,7 @@ class GameState:
                     )
                 player.play_card(played_card)
                 self._trick.add_card(played_card)
+
                 if self._trick.is_complete():
                     points = self._trick.get_trick_points()
                     winner = self._trick.get_winner(
@@ -229,8 +244,9 @@ class GameState:
                 self._game_type = game_type
                 self._declaration = (hand, schneider, schwarz, open)
             case GiveUp():
-                player, score = self.calculate_game_score()
+                score = self.calculate_game_score()
                 self._game_result = score
+                pass
 
         self._action_history.append((player, action))
         self._advance_turn(action)
@@ -238,7 +254,10 @@ class GameState:
 
     def _advance_turn(self, action: Action):
         if isinstance(action, GiveUp):
-            self._phase = GamePhase.LOST
+            if self._game_result < 0:
+                self._phase = GamePhase.LOST
+            else:
+                self._phase = GamePhase.WON
             return
 
         if self._phase == GamePhase.BID:

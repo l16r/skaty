@@ -735,3 +735,134 @@ def test_is_valid_action():
 
     for test in test_data:
         assert ruleset.is_valid_action(test[0], test[1]) == test[2]
+
+
+def test_calculate_game_score():
+    ruleset = ISkO()
+    p1 = Player("p1")
+    p2 = Player("p2")
+    p3 = Player("p3")
+    players = [p1, p2, p3]
+    # Each test tuple: (players, declarer, points, tricks, game_type, bid, skat, hand, schneider_announced, schwarz_announced, ouvert, expected_score)
+    test_data = [
+        # Declarer wins a suit game
+        (
+            players,
+            0,
+            {p1: 61, p2: 30, p3: 29},
+            [(None, p1)] * 7 + [(None, p2)] * 2 + [(None, p3)],
+            GameType.DIAMONDS,
+            18,
+            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
+            False,
+            False,
+            False,
+            False,
+            18,
+        ),
+        # Declarer loses a suit game
+        (
+            players,
+            0,
+            {p1: 60, p2: 30, p3: 30},
+            [(None, p1)] * 7 + [(None, p2)] * 2 + [(None, p3)],
+            GameType.DIAMONDS,
+            18,
+            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
+            False,
+            False,
+            False,
+            False,
+            -36,
+        ),
+        # Null game, declarer wins
+        (
+            players,
+            0,
+            {p1: 0, p2: 60, p3: 60},
+            [(None, p2)] * 5 + [(None, p3)] * 5,
+            GameType.NULL,
+            23,
+            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
+            False,
+            False,
+            False,
+            False,
+            23,
+        ),
+        # Null game, declarer loses
+        (
+            players,
+            0,
+            {p1: 0, p2: 60, p3: 60},
+            [(None, p1)] + [(None, p2)] * 4 + [(None, p3)] * 5,
+            GameType.NULL,
+            23,
+            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
+            False,
+            False,
+            False,
+            False,
+            -46,
+        ),
+        # Null game, declarer loses (overbid)
+        (
+            players,
+            0,
+            {p1: 0, p2: 60, p3: 60},
+            [(None, p2)] * 5 + [(None, p3)] * 5,
+            GameType.NULL,
+            24,
+            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
+            False,
+            False,
+            False,
+            False,
+            -46,
+        ),
+        # Null hand
+        (
+            players,
+            0,
+            {p1: 0, p2: 60, p3: 60},
+            [(None, p2)] * 5 + [(None, p3)] * 5,
+            GameType.NULL,
+            35,
+            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
+            True,
+            False,
+            False,
+            False,
+            35,
+        ),
+    ]
+
+    for (
+        players,
+        declarer,
+        points,
+        tricks,
+        game_type,
+        bid,
+        skat,
+        hand,
+        schneider_announced,
+        schwarz_announced,
+        ouvert,
+        expected_score,
+    ) in test_data:
+        ruleset.set_game_type(game_type)
+        score = ruleset.calculate_game_score(
+            players,
+            declarer,
+            points,
+            tricks,
+            game_type,
+            bid,
+            skat,
+            hand,
+            schneider_announced,
+            schwarz_announced,
+            ouvert,
+        )
+        assert score == expected_score

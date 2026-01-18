@@ -19,6 +19,7 @@ from skaty.rules import (
     Pass,
     PlayCard,
 )
+from skaty.trick import Trick
 
 # All bid values possible. The Null values and the grand and suit values multiplied with the range of their possible multipliers.
 VALID_BID_VALUES = [
@@ -202,9 +203,79 @@ class ISkO(AbstractRuleSet):
 
         return winner
 
-    def calculate_game_score(self) -> int:
-        # TODO: implement
-        return 0
+    def calculate_game_score(
+        self,
+        players: list[Player],
+        declarer: int,
+        points: dict[Player, int],
+        tricks: list[tuple[Trick, Player]],
+        game_type: GameType,
+        bid: int,
+        skat: tuple[Card, Card],
+        hand: bool = False,
+        schneider_announced: bool = False,
+        schwarz_announced: bool = False,
+        ouvert: bool = False,
+    ) -> int:
+        """
+        Calculate the game score according to Skat rules.
+        Returns positive score if declarer wins, negative if loses.
+        """
+        # Points
+        declarer_player = players[declarer]
+        declarer_points = points[declarer_player]
+
+        tops = self.tops(declarer_player.hand + list(skat))
+        tricks_scored = sum(1 for _, player in tricks if player == declarer_player)
+        # ISkO 2.5.5
+        is_schneider = declarer_points >= 90 or declarer_points <= 30
+        # ISkO 2.5.6
+        is_schwarz = tricks_scored == 0 or tricks_scored == 10
+
+        base_value = game_type.value
+
+        if game_type is GameType.NULL:
+            # ISkO 2.4.2
+            if hand and ouvert:
+                base_value = 59
+            elif hand:
+                base_value = 35
+            elif ouvert:
+                base_value = 46
+            if tricks_scored > 0 or bid > base_value:
+                # Lost
+                base_value *= -2
+            return base_value
+
+        multiplier = 1 + tops
+        lost = declarer_points <= 60
+        if hand:
+            multiplier += 1
+
+        if is_schneider:
+            multiplier += 1
+        if is_schwarz:
+            multiplier += 1
+        if ouvert:
+            multiplier += 1
+        if schneider_announced:
+            multiplier += 1
+        if schwarz_announced:
+            multiplier += 1
+
+        # Check if announcements are correct
+        if ouvert and not is_schwarz:
+            lost = True
+        if schwarz_announced and not is_schwarz:
+            lost = True
+        if schneider_announced and not is_schneider:
+            lost = True
+        if bid > multiplier * base_value:
+            lost = True
+
+        if lost:
+            return -2 * multiplier * base_value
+        return multiplier * base_value
 
     def is_valid_action(
         self,
@@ -379,6 +450,7 @@ class ISkO(AbstractRuleSet):
         if open and schwarz and schneider and hand:
             multiplier += 1
 
+        # TODO: tops need to include the Skat
         tops = self.tops(player.hand)
 
         return bid <= (tops + multiplier) * base_value
