@@ -28,7 +28,7 @@ class GameState:
     # Some ruleset to consider during game. Could be ISkO or some extension.
     _rule_set: AbstractRuleSet
     _game_type: GameType
-    _trick_history: list[Trick]
+    _trick_history: list[tuple[Trick, Player]]
     # List of all actions with their player in chronological order.
     _action_history: list[tuple[Player, Action]]
     # Highgest bid observed. Can also be calculated by considering _action_history.
@@ -64,7 +64,7 @@ class GameState:
         self._rule_set = rule_set
         self._bid = None
         self._action_history = []
-        self._trick_history = list()
+        self._trick_history = []
         self._phase = GamePhase.PRE_DEAL
         self._skat = None
         self._points = dict()
@@ -171,6 +171,7 @@ class GameState:
                     first_player = (current_player - 2) % 3
                     winner_player_index = (first_player + winner) % 3
                     winner_player = self._players[winner_player_index]
+                    self._trick_history.append((self._trick, winner_player))
                     # Add points to winner
                     self._points[winner_player] += points
                     # Reset trick
