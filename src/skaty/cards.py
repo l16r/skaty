@@ -47,6 +47,8 @@ class Suit(IntEnum):
 
 
 class Card:
+    __slots__ = "_rank", "_suit"
+
     def __init__(self, rank: Rank, suit: Suit) -> None:
         self._rank = rank
         self._suit = suit
