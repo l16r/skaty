@@ -4,20 +4,13 @@ from typing import Optional
 from skaty.cards import Card
 
 
-class Role(Enum):
-    OPPOSITION = 0
-    DECLARER = 1
-
-
 class Player:
     _name: str
-    role: Role
     _hand: list[Card]
     _played_cards: list[Card]
 
     def __init__(self, name: str, hand: Optional[list[Card]] = None):
         self._name = name
-        self.role = Role.OPPOSITION
         self._hand = hand if hand is not None else []
         self._played_cards = []
 
