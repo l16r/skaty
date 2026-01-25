@@ -21,75 +21,92 @@ from skaty.rules import (
 )
 from skaty.trick import Trick
 
-# All bid values possible. The Null values and the grand and suit values multiplied with the range of their possible multipliers.
-VALID_BID_VALUES = [
-    23,
-    35,
-    46,
-    59,
-    18,
-    20,
-    22,
-    24,
-    27,
-    30,
-    33,
-    36,
-    40,
-    44,
-    48,
-    45,
-    50,
-    55,
-    60,
-    54,
-    66,
-    72,
-    63,
-    70,
-    77,
-    84,
-    80,
-    88,
-    96,
-    81,
-    90,
-    99,
-    108,
-    100,
-    110,
-    120,
-    121,
-    132,
-    144,
-    117,
-    130,
-    143,
-    156,
-    126,
-    140,
-    154,
-    168,
-    135,
-    150,
-    165,
-    180,
-    160,
-    176,
-    192,
-    153,
-    170,
-    187,
-    204,
-    162,
-    198,
-    216,
-    240,
-    264,
-]
+# All bid values possible per ISkO (Null values and grand/suit values multiplied with range of their possible multipliers).
+_VALID_BIDS = frozenset(
+    [
+        23,
+        35,
+        46,
+        59,
+        18,
+        20,
+        22,
+        24,
+        27,
+        30,
+        33,
+        36,
+        40,
+        44,
+        48,
+        45,
+        50,
+        55,
+        60,
+        54,
+        66,
+        72,
+        63,
+        70,
+        77,
+        84,
+        80,
+        88,
+        96,
+        81,
+        90,
+        99,
+        108,
+        100,
+        110,
+        120,
+        121,
+        132,
+        144,
+        117,
+        130,
+        143,
+        156,
+        126,
+        140,
+        154,
+        168,
+        135,
+        150,
+        165,
+        180,
+        160,
+        176,
+        192,
+        153,
+        170,
+        187,
+        204,
+        162,
+        198,
+        216,
+        240,
+        264,
+    ]
+)
 
 
 class ISkO(AbstractRuleSet):
+    _VALID_BIDS = _VALID_BIDS
+
+    # Map of actions to phases in which they are valid.
+    _PHASE_RULES: dict[type[Action], list[GamePhase]] = {
+        DealCards: [GamePhase.PRE_DEAL],
+        PlayCard: [GamePhase.PLAYING],
+        DrawSkat: [GamePhase.DECLARATION],
+        BurySkat: [GamePhase.DECLARATION],
+        DeclareGame: [GamePhase.DECLARATION],
+        DeclareBid: [GamePhase.BID],
+        Listen: [GamePhase.BID],
+        Pass: [GamePhase.PRE_DEAL, GamePhase.BID],
+        GiveUp: [GamePhase.PLAYING],
+    }
+
     _game_type: GameType
 
     def __init__(self) -> None:
@@ -282,18 +299,7 @@ class ISkO(AbstractRuleSet):
         action: Action,
         phase: GamePhase,
     ) -> bool:
-        action_phase_map: dict[type[Action], list[GamePhase]] = {
-            DealCards: [GamePhase.PRE_DEAL],
-            PlayCard: [GamePhase.PLAYING],
-            DrawSkat: [GamePhase.DECLARATION],
-            BurySkat: [GamePhase.DECLARATION],
-            DeclareGame: [GamePhase.DECLARATION],
-            DeclareBid: [GamePhase.BID],
-            Listen: [GamePhase.BID],
-            Pass: [GamePhase.PRE_DEAL, GamePhase.BID],
-            GiveUp: [GamePhase.PLAYING],
-        }
-        allowed_phases = action_phase_map.get(type(action), [])
+        allowed_phases = self._PHASE_RULES.get(type(action), [])
         return phase in allowed_phases
 
     def is_valid_bid(
@@ -342,7 +348,7 @@ class ISkO(AbstractRuleSet):
                         ),
                         default=0,
                     )
-                    return bid.bid > max_bid and bid.bid in VALID_BID_VALUES
+                    return bid.bid > max_bid and bid.bid in self._VALID_BIDS
                 # Listen or Pass not allowed
                 return False
 
@@ -358,7 +364,7 @@ class ISkO(AbstractRuleSet):
                 ),
                 default=0,
             )
-            return bid.bid > max_bid and bid.bid in VALID_BID_VALUES
+            return bid.bid > max_bid and bid.bid in self._VALID_BIDS
 
         # Listen is only allowed if there is an active bid
         if isinstance(bid, Listen):
@@ -403,7 +409,7 @@ class ISkO(AbstractRuleSet):
     ) -> bool:
         if game_type is GameType.PASS:
             return True
-        if bid not in VALID_BID_VALUES:
+        if bid not in self._VALID_BIDS:
             return False
 
         if game_type is GameType.NULL:
