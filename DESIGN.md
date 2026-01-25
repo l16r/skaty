@@ -32,12 +32,32 @@ playing --> won: Action.PLAY_CARD
 
 ```
 @startuml
+enum Rank {
+  SEVEN=7
+  EIGHT=8
+  NINE=9
+  TEN=10
+  JACK=11
+  QUEEN=12
+  KING=13
+  ACE=14
+  + @property points(): int
+}
+
+enum Suit {
+  DIAMONDS=0
+  HEARTS=1
+  SPADES=2
+  CLUBS=3
+}
+
 class Card {
   - rank: Rank
   - suit: Suit
   + @property rank(): Rank
   + @property suit(): Suit
   + @property points(): int
+  + __init__(rank: Rank, suit: Suit)
   + __eq__(other: Card): bool
   + __str__(): str
   + __repr__(): str
@@ -50,20 +70,22 @@ class ComparableCard {
   + __lt__(other: object): bool
   + __eq__(other: object): bool
 }
+
 class Player {
-  + role: Role
   - name: str
   - hand: list[Card]
+  - played_cards: list[Card]
   + @property name(): str
   + @property hand(): list[Card]
+  + __init__(name: str, hand: Optional[list[Card]] = None)
+  + __str__(): str
+  + __repr__(): str
+  + all_cards(): list[Card]
   + add_card(card: Card)
   + add_cards(cards: list[Card])
   + play_card(card: Card)
 }
-enum Role {
-  OPPOSITION
-  DECLARER
-}
+
 abstract class AbstractRuleSet {
   + {abstract} game_type(): GameType
   + {abstract} set_game_type(v: GameType)
@@ -71,37 +93,42 @@ abstract class AbstractRuleSet {
   + {abstract} is_card_trump(card: Card): bool
   + {abstract} tops(cards: list[Card]): int
   + {abstract} get_card_effective_rank_value(card: Card): int
-  + {abstract} determine_trick_winner(cards_in_trick: list[Card]): Player
-  + {abstract} calculate_game_score(players: list[Player], tricks: list[Trick]): int
+  + {abstract} determine_trick_winner(trick: list[Card]): int
+  + {abstract} calculate_game_score(players: list[Player], declarer: int, points: dict[Player, int], tricks: list[tuple[Trick, Player]], game_type: GameType, bid: int, skat: tuple[Card,Card], hand: bool=False, schneider_announced:bool=False, schwarz_announced:bool=False, ouvert:bool=False): int
   + {abstract} is_valid_action(action: Action, phase: GamePhase): bool
   + {abstract} is_valid_bid(player: Player, bid: DeclareBid | Listen | Pass, previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]]): bool
   + {abstract} is_valid_card_play(player: Player, card: Card, first_card: Optional[Card]): bool
-  + {abstract} is_valid_game_declaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool, schwarz: bool, open: bool, hand_available: bool): bool
+  + {abstract} is_valid_game_declaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool=False, schwarz: bool=False, open: bool=False, hand_available: bool=True): bool
 }
+
 class ISkO {
 }
+
 class GameState {
   - players: list[Player]
   - active_player: int
   - trick: Trick
   - rule_set: AbstractRuleSet
-  - trick_history: list[Trick]
+  - game_type: GameType
+  - trick_history: list[tuple[Trick, Player]]
   - action_history: list[tuple[Player, Action]]
-  - bid: int
+  - bid: Optional[int]
   - phase: GamePhase
   - skat: Optional[tuple[Card, Card]]
   - points: dict[Player, int]
   - hand_available: bool
   - game_result: int
-  - declarer: int
+  - declarer: Optional[int]
+  - declaration: tuple[bool, bool, bool, bool]
   - log: bool
-  + is_game_over(): bool
-  + possible_actions(player: Player): list[ActionType]
+  + __init__(players: list[Player], rule_set: AbstractRuleSet, log: bool=False)
   + calculate_game_score(): int
-  + apply_action(player: Player, action: Action, phase: GamePhase): bool
-  + reverse_last_action()
-  - advance_turn()
+  + apply_action(player: Player, action: Action): bool
+  - advance_turn(action: Action)
+  - advance_bidding(action: Action)
+  - get_previous_bids() -> list[tuple[Player, DeclareBid | Listen | Pass]]
 }
+
 class Trick {
   - cards: list[Card]
   + @property first_card(): Optional[Card]
@@ -110,6 +137,17 @@ class Trick {
   + get_winner(rule_set: AbstractRuleSet): int
   + get_trick_points(): int
 }
+
+enum GamePhase {
+  PRE_DEAL
+  BID
+  PASSED
+  DECLARATION
+  PLAYING
+  LOST
+  WON
+}
+
 enum ActionType {
   DEAL_CARDS
   PLAY_CARD
@@ -121,18 +159,11 @@ enum ActionType {
   DECLARE_GAME
   GIVE_UP
 }
-enum GamePhase {
-  PRE_DEAL
-  BID
-  PASSED
-  DECLARATION
-  PLAYING
-  LOST
-  WON
-}
+
 class Action {
   + @property type(): ActionType
 }
+
 class PlayCard {
   + card: Card
 }
@@ -149,40 +180,23 @@ class Pass {
 class DeclareGame {
   + game_type: GameType
   + hand: bool
-  + schneider: bool
-  + schwarz: bool
-  + open: bool
+  + schneider: bool=False
+  + schwarz: bool=False
+  + open: bool=False
 }
 class GiveUp {
 }
-enum Rank {
-  SEVEN=7
-  EIGHT=8
-  NINE=9
-  TEN=10
-  JACK=11
-  QUEEN=12
-  KING=13
-  ACE=14
-  + @property points(): int
-}
-enum Suit {
-  DIAMONDS=0
-  HEARTS=1
-  SPADES=2
-  CLUBS=3
-}
+
 enum GameType {
-  DIAMONDS
-  HEARTS
-  SPADES
-  CLUBS
-  NULL
-  GRAND
-  RAMSCH
-  PASS
+  PASS=0
+  DIAMONDS=9
+  HEARTS=10
+  SPADES=11
+  CLUBS=12
+  NULL=23
+  GRAND=24
 }
-Player "0..*" *-- "1" Role: is
+
 Player "1" -- "1" GameState : active player
 Player "0..*" -- "1" GameState : controls
 Player "1" *-- "0..10*" Card : has
