@@ -282,26 +282,19 @@ class ISkO(AbstractRuleSet):
         action: Action,
         phase: GamePhase,
     ) -> bool:
-        if isinstance(action, DealCards):
-            return phase in [GamePhase.PRE_DEAL]
-        if isinstance(action, PlayCard):
-            return phase in [GamePhase.PLAYING]
-        if isinstance(action, DrawSkat):
-            return phase in [GamePhase.DECLARATION]
-        if isinstance(action, BurySkat):
-            return phase in [GamePhase.DECLARATION]
-        if isinstance(action, DeclareGame):
-            return phase in [GamePhase.DECLARATION]
-        if isinstance(action, DeclareBid):
-            return phase in [GamePhase.BID]
-        if isinstance(action, Listen):
-            return phase in [GamePhase.BID]
-        if isinstance(action, Pass):
-            return phase in [GamePhase.PRE_DEAL, GamePhase.BID]
-        if isinstance(action, GiveUp):
-            return phase in [GamePhase.PLAYING]
-
-        return False
+        action_phase_map: dict[type[Action], list[GamePhase]] = {
+            DealCards: [GamePhase.PRE_DEAL],
+            PlayCard: [GamePhase.PLAYING],
+            DrawSkat: [GamePhase.DECLARATION],
+            BurySkat: [GamePhase.DECLARATION],
+            DeclareGame: [GamePhase.DECLARATION],
+            DeclareBid: [GamePhase.BID],
+            Listen: [GamePhase.BID],
+            Pass: [GamePhase.PRE_DEAL, GamePhase.BID],
+            GiveUp: [GamePhase.PLAYING],
+        }
+        allowed_phases = action_phase_map.get(type(action), [])
+        return phase in allowed_phases
 
     def is_valid_bid(
         self,
