@@ -41,15 +41,21 @@ class GameState:
     _hand_available: bool
     # Contains the game result in GamePhase.WON or GamePhase.LOST. Can also be calculated by calling calculate_game_score().
     _game_result: int
-    # None if game was passed.
     # Declarer, constant after game was bid. None if game is before GamePhase.BID or in GamePhase.PASSED.
     _declarer: Optional[int]
+    _forehand: int
+    _middlehand: int
+    _backhand: int
     # The game declared (hand, schneider announced, schwarz announced, ouvert)
     _declaration: tuple[bool, bool, bool, bool]
     _log: bool
 
     def __init__(
-        self, players: list[Player], rule_set: AbstractRuleSet, log: bool = False
+        self,
+        players: list[Player],
+        rule_set: AbstractRuleSet,
+        dealer: int,
+        log: bool = False,
     ):
         """
         Initialize a game.
@@ -60,7 +66,10 @@ class GameState:
         if len(players) != 3:
             raise InvalidGameStateError("A game must consist of 3 players.")
         self._players = players
-        self._active_player = 2
+        self._active_player = dealer
+        self._forehand = (dealer + 1) % 3
+        self._middlehand = (dealer + 2) % 3
+        self._backhand = dealer
         self._trick = Trick()
         self._rule_set = rule_set
         self._bid = None
@@ -270,7 +279,7 @@ class GameState:
 
         if isinstance(action, DealCards):
             self._phase = GamePhase.BID
-            self._active_player = 1  # Middlehand starts bidding
+            self._active_player = self._middlehand
             return
 
         if isinstance(action, DeclareGame):

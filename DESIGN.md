@@ -121,7 +121,7 @@ class GameState {
   - declarer: Optional[int]
   - declaration: tuple[bool, bool, bool, bool]
   - log: bool
-  + __init__(players: list[Player], rule_set: AbstractRuleSet, log: bool=False)
+  + __init__(players: list[Player], rule_set: AbstractRuleSet, dealer: int, log: bool=False)
   + calculate_game_score(): int
   + apply_action(player: Player, action: Action): bool
   - advance_turn(action: Action)
