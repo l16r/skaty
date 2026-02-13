@@ -168,9 +168,6 @@ class GameState:
         match action:
             case DealCards():
                 shuffled = shuffle_deck(create_deck())
-                memento["p0_hand"] = list(self._players[0].hand)
-                memento["p1_hand"] = list(self._players[1].hand)
-                memento["p2_hand"] = list(self._players[2].hand)
 
                 self._players[0].add_cards(shuffled[0:10])
                 self._players[1].add_cards(shuffled[10:20])
