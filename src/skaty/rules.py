@@ -156,7 +156,7 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def tops(self, cards: list[Card]) -> int:
+    def tops(self, cards: list[Card], game_type: GameType) -> int:
         pass
 
     @abstractmethod
