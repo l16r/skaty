@@ -184,7 +184,7 @@ class GameState:
                         f"Can not play {played_card}, because it is illegal."
                     )
 
-                memento["trick_cards"] = list(self._trick._cards)
+                memento["trick_cards"] = self._trick.cards
 
                 player.play_card(played_card)
                 self._trick.add_card(played_card)
@@ -268,21 +268,19 @@ class GameState:
 
         if isinstance(action, PlayCard):
             # Was the trick finished?
-            if len(self._trick._cards) == 0 and self._trick_history:
+            if self._trick.len == 0 and self._trick_history:
                 last_trick, winner = self._trick_history.pop()
                 self._trick = last_trick
                 # Reset points
                 self._points = m["points_snapshot"]
 
             # remove cards and get them back into hand
-            self._trick._cards.pop()
-            player._hand.append(action.card)
-            player._played_cards.remove(action.card)
+            self._trick.pop()
+            player.undo_play_card(action.card)
 
         elif isinstance(action, DealCards):
-            self._players[0]._hand = m["p0_hand"]
-            self._players[1]._hand = m["p1_hand"]
-            self._players[2]._hand = m["p2_hand"]
+            for p in self._players:
+                p.clear_hand()
 
         elif isinstance(action, DrawSkat) or isinstance(action, BurySkat):
             self._players[self._declarer]._hand = m["declarer_hand"]

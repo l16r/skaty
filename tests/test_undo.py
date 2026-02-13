@@ -108,9 +108,13 @@ def test_undo_complete_trick_and_points(dealt_game: GameState):
 
     after_trick = get_snapshot(gs)
 
+    print(after_trick["hands"])
+
     assert len(gs._trick_history) == 0
     assert sum(gs._points.values()) == 0
     assert set(after_trick["hands"][0]) == set(before_trick["hands"][0])
+    assert set(after_trick["hands"][1]) == set(before_trick["hands"][1])
+    assert set(after_trick["hands"][2]) == set(before_trick["hands"][2])
     assert gs._phase == GamePhase.PLAYING
 
 

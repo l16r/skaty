@@ -18,11 +18,24 @@ class Trick:
             return None
         return self._cards[0]
 
+    @property
+    def len(self) -> int:
+        return len(self._cards)
+
+    @property
+    def cards(self) -> list[Card]:
+        return self._cards
+
     def add_card(self, card: Card):
         if self.is_complete():
             raise InvalidGameStateError("Trick already complete.")
 
         self._cards.append((card))
+
+    def pop(self) -> Optional[Card]:
+        if len(self._cards) == 0:
+            return None
+        return self._cards.pop()
 
     def is_complete(self):
         return len(self._cards) == 3
