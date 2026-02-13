@@ -65,6 +65,13 @@ class Card:
     def points(self) -> int:
         return self._rank.points
 
+    @property
+    def uid(self) -> int:
+        """
+        Unique identifier (0-31) for AI tensors.
+        """
+        return self._suit.value * 8 + (self._rank.value - 7)
+
     def __eq__(self, other) -> bool:
         if not isinstance(other, Card):
             return False

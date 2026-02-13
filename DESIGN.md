@@ -57,6 +57,7 @@ class Card {
   + @property rank(): Rank
   + @property suit(): Suit
   + @property points(): int
+  + @property uid(): int
   + __init__(rank: Rank, suit: Suit)
   + __eq__(other: Card): bool
   + __str__(): str
