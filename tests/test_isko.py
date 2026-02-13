@@ -2,18 +2,22 @@ import pytest
 from skaty import isko
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import InvalidPlayError
+from skaty.game_state import GameState
 from skaty.isko import ISkO
 from skaty.player import Player
 from skaty.rules import (
     Action,
+    BiddingPhase,
     DealCards,
     DeclareBid,
     DeclareGame,
+    DrawSkat,
     GamePhase,
     GameType,
     Listen,
     Pass,
     PlayCard,
+    PlayerPosition,
 )
 
 
@@ -607,120 +611,161 @@ def test_tops():
 
 
 def test_is_valid_bid():
-    p1 = Player("test_1")
-    p2 = Player("test_2")
-    p3 = Player("test_3")
+    p1 = Player("forehand")
+    p2 = Player("middlehand")
+    p3 = Player("backhand")
     test_data = [
         (
             [
-                (p1, DeclareBid(18)),
-                (p2, Listen()),
-                (p1, DeclareBid(20)),
-                (p2, Pass()),
+                (p2, DeclareBid(18)),
+                (p1, Listen()),
+                (p2, DeclareBid(20)),
+                (p1, Pass()),
                 (p3, Pass()),
             ],
             p1,
             Pass(),
+            PlayerPosition.MIDDLEHAND,
+            BiddingPhase.MiddlehandBackhand,
             False,
         ),
         (
             [
-                (p1, Pass()),
                 (p2, Pass()),
+                (p1, Pass()),
             ],
             p3,
             Pass(),
+            PlayerPosition.BACKHAND,
+            BiddingPhase.ForehandBackhand,
             True,
         ),
         (
             [
-                (p1, DeclareBid(18)),
-                (p2, Listen()),
-                (p1, DeclareBid(20)),
-                (p2, Pass()),
+                (p2, DeclareBid(18)),
+                (p1, Listen()),
+                (p2, DeclareBid(20)),
+                (p1, Pass()),
                 (p3, Pass()),
             ],
             p1,
             Pass(),
+            PlayerPosition.FOREHAND,
+            BiddingPhase.MiddlehandBackhand,
             False,
         ),
         (
             [
-                (p1, DeclareBid(18)),
-                (p2, Listen()),
-                (p1, DeclareBid(20)),
-                (p2, Pass()),
+                (p2, DeclareBid(18)),
+                (p1, Listen()),
+                (p2, DeclareBid(20)),
+                (p1, Pass()),
                 (p3, Pass()),
             ],
             p1,
-            DeclareBid(18),
+            DeclareBid(22),
+            PlayerPosition.FOREHAND,
+            BiddingPhase.MiddlehandBackhand,
             False,
         ),
         (
             [
-                (p1, DeclareBid(18)),
-                (p2, Listen()),
-                (p1, DeclareBid(20)),
-                (p2, Pass()),
-                (p3, Pass()),
-            ],
-            p1,
-            DeclareBid(20),
-            False,
-        ),
-        (
-            [
-                (p1, DeclareBid(18)),
-                (p2, Listen()),
-                (p1, DeclareBid(20)),
-                (p2, Pass()),
+                (p2, DeclareBid(18)),
+                (p1, Listen()),
+                (p2, DeclareBid(20)),
+                (p1, Pass()),
                 (p3, Pass()),
             ],
             p2,
             DeclareBid(20),
+            PlayerPosition.FOREHAND,
+            BiddingPhase.MiddlehandBackhand,
             False,
         ),
         (
             [
-                (p1, Pass()),
-                (p3, DeclareBid(18)),
                 (p2, Pass()),
+                (p3, DeclareBid(18)),
+                (p1, Pass()),
             ],
             p3,
             DeclareBid(18),
+            PlayerPosition.BACKHAND,
+            BiddingPhase.ForehandBackhand,
             False,
         ),
         (
             [
-                (p1, Pass()),
-                (p3, DeclareBid(18)),
                 (p2, Pass()),
+                (p3, DeclareBid(18)),
+                (p1, Pass()),
             ],
             p3,
             DeclareBid(20),
+            PlayerPosition.BACKHAND,
+            BiddingPhase.ForehandBackhand,
             True,
         ),
         (
             [
-                (p1, Pass()),
-                (p3, DeclareBid(18)),
                 (p2, Pass()),
+                (p3, DeclareBid(18)),
+                (p1, Pass()),
             ],
             p3,
             Listen(),
+            PlayerPosition.BACKHAND,
+            BiddingPhase.ForehandBackhand,
             False,
         ),
-        ([], p1, Pass(), True),
-        ([], p1, Listen(), False),
-        ([], p1, DeclareBid(18), True),
-        ([], p1, DeclareBid(19), False),
-        ([], p1, DeclareBid(-1), False),
+        (
+            [],
+            p2,
+            Pass(),
+            PlayerPosition.MIDDLEHAND,
+            BiddingPhase.ForehandMiddlehand,
+            True,
+        ),
+        (
+            [],
+            p2,
+            Listen(),
+            PlayerPosition.MIDDLEHAND,
+            BiddingPhase.ForehandMiddlehand,
+            False,
+        ),
+        (
+            [],
+            p2,
+            DeclareBid(18),
+            PlayerPosition.MIDDLEHAND,
+            BiddingPhase.ForehandMiddlehand,
+            True,
+        ),
+        (
+            [],
+            p2,
+            DeclareBid(19),
+            PlayerPosition.MIDDLEHAND,
+            BiddingPhase.ForehandMiddlehand,
+            False,
+        ),
+        (
+            [],
+            p2,
+            DeclareBid(-1),
+            PlayerPosition.MIDDLEHAND,
+            BiddingPhase.ForehandMiddlehand,
+            False,
+        ),
     ]
 
     ruleset = ISkO()
 
     for test in test_data:
-        assert ruleset.is_valid_bid(test[1], test[2], test[0]) == test[3]
+        assert (
+            ruleset.is_valid_bid(test[1], test[2], test[0], test[3], test[4]) == test[5]
+        )
 
 
 def test_is_valid_action():
@@ -1241,3 +1286,37 @@ def test_calculate_game_score():
             ouvert,
         )
         assert score == expected_score
+
+
+def test_get_valid_actions():
+    p1 = Player("p1")
+    p2 = Player("p2")
+    p3 = Player("p3")
+    players = [p1, p2, p3]
+    ruleset = ISkO()
+    game = GameState(players, ruleset, 2)
+
+    assert game.get_valid_actions(p1) == []
+    assert game.get_valid_actions(p2) == []
+    assert set(game.get_valid_actions(p3)) == {Pass(), DealCards()}
+
+    game.apply_action(p3, DealCards())
+    # Not active
+    assert game.get_valid_actions(p1) == []
+    assert game.get_valid_actions(p3) == []
+    # Active (declarer)
+    assert set(game.get_valid_actions(p2)) == {Pass(), DeclareBid(18)}
+
+    game.apply_action(p2, DeclareBid(18))
+    # Not active
+    assert game.get_valid_actions(p2) == []
+    assert game.get_valid_actions(p3) == []
+    # Active (listener)
+    assert set(game.get_valid_actions(p1)) == {Pass(), Listen()}
+
+    game.apply_action(p1, Listen())
+    # Not active
+    assert game.get_valid_actions(p1) == []
+    assert game.get_valid_actions(p3) == []
+    # Active (listener)
+    assert set(game.get_valid_actions(p2)) == {Pass(), DeclareBid(20)}

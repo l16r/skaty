@@ -96,7 +96,9 @@ abstract class AbstractRuleSet {
   + {abstract} determine_trick_winner(trick: list[Card]): int
   + {abstract} calculate_game_score(players: list[Player], declarer: int, points: dict[Player, int], tricks: list[tuple[Trick, Player]], game_type: GameType, bid: int, skat: tuple[Card,Card], hand: bool=False, schneider_announced:bool=False, schwarz_announced:bool=False, ouvert:bool=False): int
   + {abstract} is_valid_action(action: Action, phase: GamePhase): bool
-  + {abstract} is_valid_bid(player: Player, bid: DeclareBid | Listen | Pass, previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]]): bool
+  + {abstract} get_action_types_for_phase(phase: GamePhase): list[type[Action]]
+  + {abstract} get_next_valid_bid(current_bid: Optional[int]): int
+  + {abstract} is_valid_bid(player: Player, bid: DeclareBid | Listen | Pass, previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]], player_pos: PlayerPosition, bidding_phase: BiddingPhase): bool
   + {abstract} is_valid_card_play(player: Player, card: Card, first_card: Optional[Card]): bool
   + {abstract} is_valid_game_declaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool=False, schwarz: bool=False, open: bool=False, hand_available: bool=True): bool
 }
@@ -113,6 +115,7 @@ class GameState {
   - trick_history: list[tuple[Trick, Player]]
   - action_history: list[tuple[Player, Action]]
   - bid: Optional[int]
+  - bidding_phase: BiddingPhase
   - phase: GamePhase
   - skat: Optional[tuple[Card, Card]]
   - points: dict[Player, int]
@@ -122,11 +125,14 @@ class GameState {
   - declaration: tuple[bool, bool, bool, bool]
   - log: bool
   + __init__(players: list[Player], rule_set: AbstractRuleSet, dealer: int, log: bool=False)
+  + @property active_player(): Player
   + calculate_game_score(): int
   + apply_action(player: Player, action: Action): bool
+  + get_valid_actions(player: Player): list[Action]
   - advance_turn(action: Action)
   - advance_bidding(action: Action)
   - get_previous_bids() -> list[tuple[Player, DeclareBid | Listen | Pass]]
+  - get_player_position(player: Player): PlayerPosition
 }
 
 class Trick {
@@ -136,6 +142,18 @@ class Trick {
   + is_complete(): bool
   + get_winner(rule_set: AbstractRuleSet): int
   + get_trick_points(): int
+}
+
+enum PlayerPosition {
+  FOREHAND
+  MIDDLEHAND
+  BACKHAND
+}
+
+enum BiddingPhase {
+  ForehandMiddlehand
+  ForehandBackhand
+  MiddlehandBackhand
 }
 
 enum GamePhase {

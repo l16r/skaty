@@ -11,7 +11,7 @@ def setup_game():
     p1 = Player("Middlehand")
     p2 = Player("Dealer")
     ruleset = ISkO()
-    game = GameState([p0, p1, p2], ruleset)
+    game = GameState([p0, p1, p2], ruleset, 2, log=True)
     return game, [p0, p1, p2]
 
 

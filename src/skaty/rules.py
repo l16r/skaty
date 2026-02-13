@@ -22,6 +22,26 @@ class GamePhase(Enum):
     WON = "WON"
 
 
+class PlayerPosition(IntEnum):
+    """
+    Position during bidding or while playing.
+    """
+
+    FOREHAND = 0
+    MIDDLEHAND = 1
+    BACKHAND = 2
+
+
+class BiddingPhase(IntEnum):
+    """
+    Phase in the bidding process.
+    """
+
+    ForehandMiddlehand = 0
+    ForehandBackhand = 1
+    MiddlehandBackhand = 2
+
+
 class GameType(IntEnum):
     """
     Basic values for suit, grand and null games according to ISkO 2.4.1, 2.4.2. Null {hand|ouvert} are respected in the rule sets calculate_game_score method.
@@ -181,11 +201,21 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
+    def get_action_types_for_phase(self, phase: GamePhase) -> list[type[Action]]:
+        pass
+
+    @abstractmethod
+    def get_next_valid_bid(self, current_bid: Optional[int]) -> int:
+        pass
+
+    @abstractmethod
     def is_valid_bid(
         self,
         player: Player,
         bid: DeclareBid | Listen | Pass,
         previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]],
+        player_pos: PlayerPosition,
+        bidding_phase: BiddingPhase,
     ) -> bool:
         pass
 

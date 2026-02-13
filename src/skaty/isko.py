@@ -2,11 +2,12 @@ from typing import Literal, Optional, Union
 
 from skaty.cards import Card, Rank, Suit
 from skaty.comparable_card import ComparableCard
-from skaty.exceptions import InvalidPlayError
+from skaty.exceptions import InvalidBidError, InvalidPlayError
 from skaty.player import Player
 from skaty.rules import (
     AbstractRuleSet,
     Action,
+    BiddingPhase,
     BurySkat,
     DealCards,
     DeclareBid,
@@ -18,6 +19,7 @@ from skaty.rules import (
     Listen,
     Pass,
     PlayCard,
+    PlayerPosition,
 )
 from skaty.trick import Trick
 
@@ -140,6 +142,18 @@ class ISkO(AbstractRuleSet):
         # ISkO 2.2.2f.
         trump = self.trump_suit()
         return (card.suit is trump) or (card.rank is Rank.JACK)
+
+    def has_trump(self, player: Player):
+        for card in player.hand:
+            if self.is_card_trump(card):
+                return True
+        return False
+
+    def has_suit(self, player: Player, suit: Suit):
+        for card in player.hand:
+            if card.suit is suit:
+                return True
+        return False
 
     def tops(self, cards: list[Card]) -> int:
         """
@@ -302,76 +316,71 @@ class ISkO(AbstractRuleSet):
         allowed_phases = self._PHASE_RULES.get(type(action), [])
         return phase in allowed_phases
 
+    def get_action_types_for_phase(self, phase: GamePhase) -> list[type[Action]]:
+        return [at for at, phases in self._PHASE_RULES.items() if phase in phases]
+
+    def get_next_valid_bid(self, current_bid: Optional[int]) -> int:
+        if current_bid is None:
+            return 18
+        sorted_bids = sorted(self._VALID_BIDS)
+        for b in sorted_bids:
+            if b > current_bid:
+                return b
+        raise InvalidBidError(f"No bid after {current_bid} possible.")
+
     def is_valid_bid(
         self,
         player: Player,
         bid: DeclareBid | Listen | Pass,
         previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]],
+        player_pos: PlayerPosition,
+        bidding_phase: BiddingPhase,
     ) -> bool:
         # Check if player has passed before
         for b in previous_bids:
             if b[0] == player and isinstance(b[1], Pass):
                 return False
 
-        # Gather all players
-        players = set(p for p, _ in previous_bids).union({player: []})
-        other_players = [p for p in players if p != player]
-
-        # Track pass/listen/bid for each player
-        player_bids = {p: [] for p in players}
-        for p, action in previous_bids:
-            player_bids[p].append(action)
-
         # Count passes
-        passes = {
-            p: any(isinstance(a, Pass) for a in acts) for p, acts in player_bids.items()
-        }
+        passes = len([p for p, a in previous_bids if isinstance(a, Pass)])
+        bid_before = any(
+            isinstance(a, (DeclareBid, Listen)) for p, a in previous_bids if p == player
+        )
 
-        # If both other players have passed
-        if (
-            len(other_players) == 2
-            and passes.get(other_players[0], False)
-            and passes.get(other_players[1], False)
-        ):
-            # If current player has already listened or declared a bid
-            has_listened = any(isinstance(a, Listen) for a in player_bids[player])
-            has_bid = any(isinstance(a, DeclareBid) for a in player_bids[player])
-            if has_listened or has_bid:
-                # Only allow a new bid if it is higher than all previous bids
-                if isinstance(bid, DeclareBid):
-                    max_bid = max(
-                        (
-                            a.bid
-                            for acts in player_bids.values()
-                            for a in acts
-                            if isinstance(a, DeclareBid)
-                        ),
-                        default=0,
-                    )
-                    return bid.bid > max_bid and bid.bid in self._VALID_BIDS
-                # Listen or Pass not allowed
+        # If both other players have passed, reject Pass if player has listened/bid before
+        if passes == 2 and isinstance(bid, Pass) and bid_before:
+            return False
+
+        if isinstance(bid, DeclareBid):
+            # Backhand is the only one that can bid in these phases
+            if (
+                bidding_phase
+                in (BiddingPhase.ForehandBackhand, BiddingPhase.MiddlehandBackhand)
+                and player_pos != PlayerPosition.BACKHAND
+                and passes < 2
+            ):
+                return False
+            # Middlehand can only bid in ForehandMiddlehand
+            if (
+                bidding_phase is BiddingPhase.ForehandMiddlehand
+                and player_pos != PlayerPosition.MIDDLEHAND
+                and passes < 2
+            ):
                 return False
 
-        # Only allow valid bid values
-        if isinstance(bid, DeclareBid):
-            # Must be higher than all previous bids
+            # Must be higher than all previous bids and valid value
             max_bid = max(
-                (
-                    a.bid
-                    for acts in player_bids.values()
-                    for a in acts
-                    if isinstance(a, DeclareBid)
-                ),
+                (a.bid for _, a in previous_bids if isinstance(a, DeclareBid)),
                 default=0,
             )
             return bid.bid > max_bid and bid.bid in self._VALID_BIDS
 
-        # Listen is only allowed if there is an active bid
+        # Listen can only be done in response to a bid directly before
         if isinstance(bid, Listen):
-            any_bid = any(
-                isinstance(a, DeclareBid) for acts in player_bids.values() for a in acts
-            )
-            return any_bid
+            if len(previous_bids) == 0:
+                return False
+            bid_before = previous_bids[-1]
+            return isinstance(bid_before[1], DeclareBid)
 
         # Pass is allowed unless already passed or forbidden by above rule
         if isinstance(bid, Pass):
@@ -380,20 +389,25 @@ class ISkO(AbstractRuleSet):
     def is_valid_card_play(
         self, player: Player, card: Card, first_card: Optional[Card]
     ) -> bool:
+        # Player can not play card not available
         if card not in player.hand:
             return False
 
+        # No card can be played if game is passed.
         if self.game_type() is GameType.PASS:
             return False
+        # Any card can be played if it is first
         if first_card is None:
             return True
 
-        if self.is_card_trump(first_card):
+        # If player has trump, he must follow
+        if self.is_card_trump(first_card) and self.has_trump(player):
             return self.is_card_trump(card)
-        if card.suit is not first_card.suit:
-            for c in player.hand:
-                if c.suit is first_card.suit:
-                    return False
+
+        # If player has suit, he must follow
+        if self.has_suit(player, first_card.suit):
+            return card.suit is first_card.suit
+
         return True
 
     def is_valid_game_declaration(
