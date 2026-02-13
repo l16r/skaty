@@ -95,7 +95,7 @@ def test_bidding_forehand_vs_dealer():
 
 def test_bidding_two_pass_forehand_bid():
     game, players = setup_game()
-    with pytest.raises(InvalidActionError):
+    with pytest.raises(InvalidGameStateError):
         # Should not be possible, before dealing
         game.apply_action(players[0], Pass())
     game.apply_action(players[2], DealCards())

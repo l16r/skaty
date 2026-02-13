@@ -105,7 +105,7 @@ class ISkO(AbstractRuleSet):
         DeclareGame: [GamePhase.DECLARATION],
         DeclareBid: [GamePhase.BID],
         Listen: [GamePhase.BID],
-        Pass: [GamePhase.PRE_DEAL, GamePhase.BID],
+        Pass: [GamePhase.BID],
         GiveUp: [GamePhase.PLAYING],
     }
 

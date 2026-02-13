@@ -1289,7 +1289,7 @@ def test_get_valid_actions():
 
     assert list(game.get_valid_actions(p1)) == []
     assert list(game.get_valid_actions(p2)) == []
-    assert set(game.get_valid_actions(p3)) == {Pass(), DealCards()}
+    assert set(game.get_valid_actions(p3)) == {DealCards()}
 
     game.apply_action(p3, DealCards())
     # Not active
