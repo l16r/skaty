@@ -1,5 +1,6 @@
 from typing import Optional
 
+import itertools
 from skaty.cards import Card, create_deck, shuffle_deck
 from skaty.exceptions import InvalidActionError, InvalidGameStateError, InvalidPlayError
 from skaty.player import Player
@@ -34,6 +35,7 @@ class GameState:
     _trick_history: list[tuple[Trick, Player]]
     # List of all actions with their player in chronological order.
     _action_history: list[tuple[Player, Action]]
+    _undo_stack: list[GameState]
     # Highgest bid observed. Can also be calculated by considering _action_history.
     _bid: Optional[int]
     _bidding_phase: BiddingPhase
@@ -79,6 +81,7 @@ class GameState:
         self._bid = None
         self._bidding_phase = BiddingPhase.ForehandMiddlehand
         self._action_history = []
+        self._undo_stack = []
         self._trick_history = []
         self._phase = GamePhase.PRE_DEAL
         self._skat = None
@@ -147,31 +150,50 @@ class GameState:
                 f"Player {player} can not {action} because he is not active."
             )
 
+        memento = {
+            "phase": self._phase,
+            "active_player": self._active_player,
+            "bid": self._bid,
+            "bidding_phase": self._bidding_phase,
+            "declarer": self._declarer,
+            "hand_available": self._hand_available,
+            "skat": self._skat,
+            "game_result": self._game_result,
+        }
+
         if self._log:
             print(f"Player {player} plays {action}.")
 
         match action:
             case DealCards():
                 shuffled = shuffle_deck(create_deck())
+                memento["p0_hand"] = list(self._players[0].hand)
+                memento["p1_hand"] = list(self._players[1].hand)
+                memento["p2_hand"] = list(self._players[2].hand)
+
                 self._players[0].add_cards(shuffled[0:10])
                 self._players[1].add_cards(shuffled[10:20])
                 self._players[2].add_cards(shuffled[20:30])
                 self._skat = (shuffled[30], shuffled[31])
             case PlayCard(card=played_card):
-                if played_card not in player.hand:
-                    raise InvalidPlayError(
-                        f"{player.name} does not have {played_card}."
-                    )
-                elif not self._rule_set.is_valid_card_play(
+                if not self._rule_set.is_valid_card_play(
                     player, played_card, self._trick.first_card
                 ):
                     raise InvalidPlayError(
                         f"Can not play {played_card}, because it is illegal."
                     )
+
+                memento["trick_cards"] = list(self._trick._cards)
+
                 player.play_card(played_card)
                 self._trick.add_card(played_card)
 
                 if self._trick.is_complete():
+                    memento["trick_winner"] = self._trick.get_winner(self._rule_set)
+                    memento["points_snapshot"] = {
+                        p: self._points[p] for p in self._players
+                    }
+
                     points = self._trick.get_trick_points()
                     winner = self._trick.get_winner(
                         self._rule_set
@@ -189,18 +211,23 @@ class GameState:
                 assert self._skat is not None
                 assert len(self._skat) == 2
                 assert self._declarer is not None
+
+                memento["declarer_hand"] = list(self._players[self._declarer].hand)
+
                 self._hand_available = False
-                self._players[self._declarer].add_card(self._skat[0])
-                self._players[self._declarer].add_card(self._skat[1])
+                self._players[self._declarer].add_cards(list(self._skat))
                 self._skat = None
             case BurySkat(cards):
                 assert self._skat is None
                 assert not self._hand_available
                 assert len(cards) == 2
                 assert self._declarer is not None
-                self._skat = (cards[0], cards[1])
-                self._players[self._declarer].play_card(cards[0])
-                self._players[self._declarer].play_card(cards[1])
+
+                memento["declarer_hand"] = list(self._players[self._declarer].hand)
+
+                self._skat = cards
+                for c in cards:
+                    self._players[self._declarer].play_card(c)
             case DeclareBid(bid=value):
                 self._bid = value
             case DeclareGame(game_type, hand, schneider, schwarz, open):
@@ -223,13 +250,55 @@ class GameState:
                 self._game_type = game_type
                 self._declaration = (hand, schneider, schwarz, open)
             case GiveUp():
-                score = self.calculate_game_score()
-                self._game_result = score
-                pass
+                self._game_result = self.calculate_game_score()
 
+        self._undo_stack.append(memento)
         self._action_history.append((player, action))
         self._advance_turn(action)
         return True
+
+    def undo_action(self):
+        if not self._undo_stack:
+            return
+
+        m = self._undo_stack.pop()
+        player, action = self._action_history.pop()
+
+        if isinstance(action, PlayCard):
+            # Was the trick finished?
+            if len(self._trick._cards) == 0 and self._trick_history:
+                last_trick, winner = self._trick_history.pop()
+                self._trick = last_trick
+                # Reset points
+                self._points = m["points_snapshot"]
+
+            # remove cards and get them back into hand
+            self._trick._cards.pop()
+            player._hand.append(action.card)
+            player._played_cards.remove(action.card)
+
+        elif isinstance(action, DealCards):
+            self._players[0]._hand = m["p0_hand"]
+            self._players[1]._hand = m["p1_hand"]
+            self._players[2]._hand = m["p2_hand"]
+
+        elif isinstance(action, DrawSkat) or isinstance(action, BurySkat):
+            self._players[self._declarer]._hand = m["declarer_hand"]
+
+        self._phase = m["phase"]
+        self._active_player = m["active_player"]
+        self._bid = m["bid"]
+        self._bidding_phase = m["bidding_phase"]
+        self._declarer = m["declarer"]
+        self._hand_available = m["hand_available"]
+        self._skat = m["skat"]
+        if "declaration" in m:
+            self._declaration = m["declaration"]
+        self._game_result = m["game_result"]
+
+        if "game_type" in m:
+            self._rule_set.set_game_type(self._game_type)
+            self._game_type = m["game_type"]
 
     def get_valid_actions(self, player: Player) -> list[Action]:
         """
@@ -279,8 +348,6 @@ class GameState:
                     valid_actions.append(action)
 
             elif action_type is BurySkat:
-                import itertools
-
                 all_cards = player.hand
                 for combo in itertools.combinations(all_cards, 2):
                     valid_actions.append(BurySkat(combo))

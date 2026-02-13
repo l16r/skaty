@@ -12,6 +12,7 @@ from skaty.rules import (
     DeclareBid,
     DeclareGame,
     DrawSkat,
+    GamePhase,
     GameType,
     GiveUp,
     Listen,

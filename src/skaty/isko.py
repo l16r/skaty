@@ -436,7 +436,6 @@ class ISkO(AbstractRuleSet):
                 return bid <= 35
             return bid <= 23
 
-        # Not really a good solution
         if (hand or schneider or schwarz or open) and not hand_available:
             raise InvalidPlayError("Can only play hand if the Skat has not been drawn.")
         elif (schneider or schwarz or open) and not (hand_available and hand):
@@ -464,6 +463,7 @@ class ISkO(AbstractRuleSet):
             multiplier += 1
 
         # TODO: tops need to include the Skat
+        self.set_game_type(game_type)
         tops = self.tops(player.hand)
 
         return bid <= (tops + multiplier) * base_value
