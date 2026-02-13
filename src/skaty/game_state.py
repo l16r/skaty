@@ -478,6 +478,7 @@ class GameState:
         if (
             self._declarer is not None
             and self._skat is not None
+            and not self._hand_available
             and viewer == self._players[self._declarer]
         ):
             seen_cards.update(self._skat)
