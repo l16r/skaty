@@ -458,6 +458,32 @@ class GameState:
             "declarer": self._declarer if self._declarer is not None else -1,
         }
 
+    def get_unseen_cards(self, viewer: Player) -> list[Card]:
+        """
+        Returns remaining cards not in hand and not in trick history.
+        """
+        all_cards = create_deck()
+        seen_cards = set(viewer.hand)
+
+        # Cards from completed tricks
+        for trick, _ in self._trick_history:
+            for card in trick.cards:
+                seen_cards.add(card)
+
+        # Cards from current trick
+        for card in self._trick.cards:
+            seen_cards.add(card)
+
+        # Cards from skat if player is declarer
+        if (
+            self._declarer is not None
+            and self._skat is not None
+            and viewer == self._players[self._declarer]
+        ):
+            seen_cards.update(self._skat)
+
+        return [c for c in all_cards if c not in seen_cards]
+
     def _get_previous_bids(self) -> list[tuple[Player, DeclareBid | Listen | Pass]]:
         """
         Return the previous bids (filters _action_history).
