@@ -97,7 +97,7 @@ def test_undo_complete_trick_and_points(dealt_game: GameState):
         gs._players[gs._backhand],
     ]
     for p in players_in_order:
-        gs.apply_action(p, gs.get_valid_actions(p)[0])
+        gs.apply_action(p, list(gs.get_valid_actions(p))[0])
 
     assert len(gs._trick_history) == 1
     assert sum(gs._points.values()) > 0

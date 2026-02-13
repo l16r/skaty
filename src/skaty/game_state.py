@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Generator, Optional
 
 import itertools
 from skaty.cards import Card, create_deck, shuffle_deck
@@ -35,6 +35,7 @@ class GameState:
     _trick_history: list[tuple[Trick, Player]]
     # List of all actions with their player in chronological order.
     _action_history: list[tuple[Player, Action]]
+    _undo_stack: list[dict[str, Any]]
     # Highgest bid observed. Can also be calculated by considering _action_history.
     _bid: Optional[int]
     _bidding_phase: BiddingPhase
@@ -296,19 +297,14 @@ class GameState:
         if "game_type" in m:
             self._game_type = m["game_type"]
 
-    def get_valid_actions(self, player: Player) -> list[Action]:
+    def get_valid_actions(self, player: Player) -> Generator[Action, None, None]:
         """
-        Returns all valid actions for a given player.
+        Yield all valid actions for a given player.
+        """
+        if self._players[self._active_player] != player:
+            return
 
-        Returns:
-            A list of currently valid actions.
-        """
-        active_player = self._players[self._active_player]
         allowed_types = self._rule_set.get_action_types_for_phase(self._phase)
-        valid_actions = []
-
-        if active_player != player:
-            return []
 
         for action_type in allowed_types:
             if action_type is PlayCard:
@@ -316,7 +312,7 @@ class GameState:
                     if self._rule_set.is_valid_card_play(
                         player, card, self._trick.first_card, self._game_type
                     ):
-                        valid_actions.append(PlayCard(card))
+                        yield PlayCard(card)
 
             elif action_type is DeclareBid:
                 next_bid = self._rule_set.get_next_valid_bid(self._bid)
@@ -327,7 +323,7 @@ class GameState:
                     self._get_player_position(player),
                     self._bidding_phase,
                 ):
-                    valid_actions.append(DeclareBid(next_bid))
+                    yield DeclareBid(next_bid)
 
             elif action_type in (Pass, Listen, DrawSkat, DealCards):
                 action = action_type()
@@ -339,16 +335,29 @@ class GameState:
                         self._get_player_position(player),
                         self._bidding_phase,
                     ):
-                        valid_actions.append(action)
+                        yield action
                 else:
-                    valid_actions.append(action)
+                    yield action
 
             elif action_type is BurySkat:
                 all_cards = player.hand
                 for combo in itertools.combinations(all_cards, 2):
-                    valid_actions.append(BurySkat(combo))
+                    yield BurySkat(combo)
 
-        return valid_actions
+            elif action_type is DeclareGame:
+                # TODO: also use hand, ouvert, etc.
+                for gt in [
+                    GameType.DIAMONDS,
+                    GameType.HEARTS,
+                    GameType.SPADES,
+                    GameType.CLUBS,
+                    GameType.GRAND,
+                    GameType.NULL,
+                ]:
+                    if self._rule_set.is_valid_game_declaration(
+                        player, self._bid or 0, gt, self._hand_available
+                    ):
+                        yield DeclareGame(gt, self._hand_available)
 
     def _advance_turn(self, action: Action):
         if isinstance(action, GiveUp):
@@ -430,6 +439,19 @@ class GameState:
         if passes == 2 and other_has_bid:
             self._phase = GamePhase.DECLARATION
             self._declarer = self._active_player
+
+    def serialize(self) -> dict[str, Any]:
+        return {
+            "phase": self._phase.value,
+            "active_player": self._active_player,
+            "bid": self._bid or 0,
+            "game_type": self._game_type.value,
+            "player_hands": [[c.uid for c in p.hand] for p in self._players],
+            "trick": [c.uid for c in self._trick.cards],
+            "skat": [c.uid for c in self._skat] if self._skat else [],
+            "points": [self._points[p] for p in self._players],
+            "declarer": self._declarer if self._declarer is not None else -1,
+        }
 
     def _get_previous_bids(self) -> list[tuple[Player, DeclareBid | Listen | Pass]]:
         """

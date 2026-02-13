@@ -1287,27 +1287,27 @@ def test_get_valid_actions():
     ruleset = ISkO()
     game = GameState(players, ruleset, 2)
 
-    assert game.get_valid_actions(p1) == []
-    assert game.get_valid_actions(p2) == []
+    assert list(game.get_valid_actions(p1)) == []
+    assert list(game.get_valid_actions(p2)) == []
     assert set(game.get_valid_actions(p3)) == {Pass(), DealCards()}
 
     game.apply_action(p3, DealCards())
     # Not active
-    assert game.get_valid_actions(p1) == []
-    assert game.get_valid_actions(p3) == []
+    assert list(game.get_valid_actions(p1)) == []
+    assert list(game.get_valid_actions(p3)) == []
     # Active (declarer)
     assert set(game.get_valid_actions(p2)) == {Pass(), DeclareBid(18)}
 
     game.apply_action(p2, DeclareBid(18))
     # Not active
-    assert game.get_valid_actions(p2) == []
-    assert game.get_valid_actions(p3) == []
+    assert list(game.get_valid_actions(p2)) == []
+    assert list(game.get_valid_actions(p3)) == []
     # Active (listener)
     assert set(game.get_valid_actions(p1)) == {Pass(), Listen()}
 
     game.apply_action(p1, Listen())
     # Not active
-    assert game.get_valid_actions(p1) == []
-    assert game.get_valid_actions(p3) == []
+    assert list(game.get_valid_actions(p1)) == []
+    assert list(game.get_valid_actions(p3)) == []
     # Active (listener)
     assert set(game.get_valid_actions(p2)) == {Pass(), DeclareBid(20)}

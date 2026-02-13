@@ -85,6 +85,8 @@ class Player {
   + add_card(card: Card)
   + add_cards(cards: list[Card])
   + play_card(card: Card)
+  + undo_play_card(card: Card)
+  + clear_hand()
 }
 
 abstract class AbstractRuleSet {
@@ -113,6 +115,7 @@ class GameState {
   - game_type: GameType
   - trick_history: list[tuple[Trick, Player]]
   - action_history: list[tuple[Player, Action]]
+  - undo_stack: list[dict[str, Any]]
   - bid: Optional[int]
   - bidding_phase: BiddingPhase
   - phase: GamePhase
@@ -121,13 +124,16 @@ class GameState {
   - hand_available: bool
   - game_result: int
   - declarer: Optional[int]
+  - forehand: int
+  - middlehand: int
+  - backhand: int
   - declaration: tuple[bool, bool, bool, bool]
   - log: bool
   + __init__(players: list[Player], rule_set: AbstractRuleSet, dealer: int, log: bool=False)
   + @property active_player(): Player
   + calculate_game_score(): int
   + apply_action(player: Player, action: Action): bool
-  + get_valid_actions(player: Player): list[Action]
+  + get_valid_actions(player: Player): Generator[Action, None, None]
   - advance_turn(action: Action)
   - advance_bidding(action: Action)
   - get_previous_bids() -> list[tuple[Player, DeclareBid | Listen | Pass]]
@@ -137,7 +143,10 @@ class GameState {
 class Trick {
   - cards: list[Card]
   + @property first_card(): Optional[Card]
+  + @property len(): int
+  + @property cards(): list[Card]
   + add_card(card: Card)
+  + pop(): Optional[Card]
   + is_complete(): bool
   + get_winner(rule_set: AbstractRuleSet, game_type: GameType): int
   + get_trick_points(): int

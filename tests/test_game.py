@@ -40,15 +40,15 @@ def test_valid_game():
 
     for _ in range(10):
         active_player = game.active_player
-        actions = game.get_valid_actions(active_player)
+        actions = list(game.get_valid_actions(active_player))
         game.apply_action(active_player, actions[0])
 
         active_player = game.active_player
-        actions = game.get_valid_actions(active_player)
+        actions = list(game.get_valid_actions(active_player))
         game.apply_action(active_player, actions[0])
 
         active_player = game.active_player
-        actions = game.get_valid_actions(active_player)
+        actions = list(game.get_valid_actions(active_player))
         game.apply_action(active_player, actions[0])
 
 
