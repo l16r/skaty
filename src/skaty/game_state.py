@@ -375,6 +375,9 @@ class GameState:
 
         if isinstance(action, PlayCard):
             self._active_player = (self._active_player + 1) % 3
+            if len(self._trick_history) == 10:
+                self._game_result = self.calculate_game_score()
+                self._phase = GamePhase.WON if self._game_result > 0 else GamePhase.LOST
             return
 
         if isinstance(action, DealCards):
