@@ -209,7 +209,8 @@ class GameState:
                     # Reset trick
                     self._trick = Trick()
             case DrawSkat():
-                assert self._skat is not None
+                if self._skat is None:
+                    return False
                 assert len(self._skat) == 2
                 assert self._declarer is not None
 
@@ -219,7 +220,8 @@ class GameState:
                 self._players[self._declarer].add_cards(list(self._skat))
                 self._skat = None
             case BurySkat(cards):
-                assert self._skat is None
+                if self._skat is not None:
+                    return False
                 assert not self._hand_available
                 assert len(cards) == 2
                 assert self._declarer is not None
@@ -339,12 +341,12 @@ class GameState:
                 else:
                     yield action
 
-            elif action_type is BurySkat:
+            elif action_type is BurySkat and self._skat is None:
                 all_cards = player.hand
                 for combo in itertools.combinations(all_cards, 2):
                     yield BurySkat(combo)
 
-            elif action_type is DeclareGame:
+            elif action_type is DeclareGame and self._skat is not None:
                 # TODO: also use hand, ouvert, etc.
                 for gt in [
                     GameType.DIAMONDS,
