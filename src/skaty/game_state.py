@@ -35,7 +35,6 @@ class GameState:
     _trick_history: list[tuple[Trick, Player]]
     # List of all actions with their player in chronological order.
     _action_history: list[tuple[Player, Action]]
-    _undo_stack: list[GameState]
     # Highgest bid observed. Can also be calculated by considering _action_history.
     _bid: Optional[int]
     _bidding_phase: BiddingPhase
@@ -78,6 +77,7 @@ class GameState:
         self._backhand = dealer
         self._trick = Trick()
         self._rule_set = rule_set
+        self._game_type = GameType.PASS
         self._bid = None
         self._bidding_phase = BiddingPhase.ForehandMiddlehand
         self._action_history = []
@@ -156,6 +156,7 @@ class GameState:
             "bid": self._bid,
             "bidding_phase": self._bidding_phase,
             "declarer": self._declarer,
+            "game_type": self._game_type,
             "hand_available": self._hand_available,
             "skat": self._skat,
             "game_result": self._game_result,
@@ -177,7 +178,7 @@ class GameState:
                 self._skat = (shuffled[30], shuffled[31])
             case PlayCard(card=played_card):
                 if not self._rule_set.is_valid_card_play(
-                    player, played_card, self._trick.first_card
+                    player, played_card, self._trick.first_card, self._game_type
                 ):
                     raise InvalidPlayError(
                         f"Can not play {played_card}, because it is illegal."
@@ -189,14 +190,16 @@ class GameState:
                 self._trick.add_card(played_card)
 
                 if self._trick.is_complete():
-                    memento["trick_winner"] = self._trick.get_winner(self._rule_set)
+                    memento["trick_winner"] = self._trick.get_winner(
+                        self._rule_set, self._game_type
+                    )
                     memento["points_snapshot"] = {
                         p: self._points[p] for p in self._players
                     }
 
                     points = self._trick.get_trick_points()
                     winner = self._trick.get_winner(
-                        self._rule_set
+                        self._rule_set, self._game_type
                     )  # index in trick order
                     current_player = self._players.index(player)  # last to play
                     first_player = (current_player - 2) % 3
@@ -246,7 +249,6 @@ class GameState:
                     self._hand_available,
                 ):
                     raise InvalidActionError("Game declaration not possible.")
-                self._rule_set.set_game_type(game_type)
                 self._game_type = game_type
                 self._declaration = (hand, schneider, schwarz, open)
             case GiveUp():
@@ -297,7 +299,6 @@ class GameState:
         self._game_result = m["game_result"]
 
         if "game_type" in m:
-            self._rule_set.set_game_type(self._game_type)
             self._game_type = m["game_type"]
 
     def get_valid_actions(self, player: Player) -> list[Action]:
@@ -318,7 +319,7 @@ class GameState:
             if action_type is PlayCard:
                 for card in player.hand:
                     if self._rule_set.is_valid_card_play(
-                        player, card, self._trick.first_card
+                        player, card, self._trick.first_card, self._game_type
                     ):
                         valid_actions.append(PlayCard(card))
 

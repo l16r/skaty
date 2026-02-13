@@ -1,17 +1,14 @@
 import pytest
-from skaty import isko
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import InvalidPlayError
 from skaty.game_state import GameState
 from skaty.isko import ISkO
 from skaty.player import Player
 from skaty.rules import (
-    Action,
     BiddingPhase,
     DealCards,
     DeclareBid,
     DeclareGame,
-    DrawSkat,
     GamePhase,
     GameType,
     Listen,
@@ -78,8 +75,7 @@ def test_get_card_effective_rank_value():
     ]
 
     for test in test_data:
-        ruleset.set_game_type(test[0])
-        assert ruleset.get_card_effective_rank_value(test[1]) == test[2]
+        assert ruleset.get_card_effective_rank_value(test[1], test[0]) == test[2]
 
 
 def test_determine_trick_winner():
@@ -241,8 +237,7 @@ def test_determine_trick_winner():
     ]
 
     for test in test_data:
-        ruleset.set_game_type(test[0])
-        assert ruleset.determine_trick_winner(test[1]) == test[2]
+        assert ruleset.determine_trick_winner(test[1], test[0]) == test[2]
 
 
 def test_is_valid_card_play():
@@ -360,8 +355,7 @@ def test_is_valid_card_play():
 
     for test in test_data:
         p = Player("test", test[1])
-        ruleset.set_game_type(test[0])
-        assert ruleset.is_valid_card_play(p, test[3], test[2]) == test[4]
+        assert ruleset.is_valid_card_play(p, test[3], test[2], test[0]) == test[4]
 
 
 def test_is_valid_game_declaration():
@@ -471,7 +465,6 @@ def test_is_valid_game_declaration():
     ruleset = ISkO()
 
     for test in test_cases:
-        ruleset.set_game_type(test[2])
         assert (
             ruleset.is_valid_game_declaration(
                 test[0],
@@ -606,8 +599,7 @@ def test_tops():
     ruleset = ISkO()
 
     for test in test_cases:
-        ruleset.set_game_type(test[0])
-        assert ruleset.tops(test[1]) == test[2]
+        assert ruleset.tops(test[1], test[0]) == test[2]
 
 
 def test_is_valid_bid():
@@ -1271,7 +1263,6 @@ def test_calculate_game_score():
         ouvert,
         expected_score,
     ) in test_data:
-        ruleset.set_game_type(game_type)
         score = ruleset.calculate_game_score(
             players,
             declarer,

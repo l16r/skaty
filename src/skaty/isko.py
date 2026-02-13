@@ -109,20 +109,11 @@ class ISkO(AbstractRuleSet):
         GiveUp: [GamePhase.PLAYING],
     }
 
-    _game_type: GameType
-
     def __init__(self) -> None:
         super().__init__()
-        self._game_type = GameType.PASS
 
-    def game_type(self) -> GameType:
-        return self._game_type
-
-    def set_game_type(self, v: GameType):
-        self._game_type = v
-
-    def trump_suit(self) -> Optional[Suit]:
-        match self._game_type:
+    def trump_suit(self, game_type: GameType) -> Optional[Suit]:
+        match game_type:
             case GameType.DIAMONDS:
                 return Suit.DIAMONDS
             case GameType.HEARTS:
@@ -134,18 +125,18 @@ class ISkO(AbstractRuleSet):
         # Null, Grand, Passed
         return None
 
-    def is_card_trump(self, card: Card) -> bool:
+    def is_card_trump(self, card: Card, game_type: GameType) -> bool:
         # ISkO 2.2.4
-        if self.game_type() in (GameType.NULL, GameType.PASS):
+        if game_type in (GameType.NULL, GameType.PASS):
             return False
 
         # ISkO 2.2.2f.
-        trump = self.trump_suit()
+        trump = self.trump_suit(game_type)
         return (card.suit is trump) or (card.rank is Rank.JACK)
 
-    def has_trump(self, player: Player):
+    def has_trump(self, player: Player, game_type: GameType):
         for card in player.hand:
-            if self.is_card_trump(card):
+            if self.is_card_trump(card, game_type):
                 return True
         return False
 
@@ -155,26 +146,26 @@ class ISkO(AbstractRuleSet):
                 return True
         return False
 
-    def tops(self, cards: list[Card]) -> int:
+    def tops(self, cards: list[Card], game_type: GameType) -> int:
         """
         Calculates the amount of tops according to ISkO 2.3.
 
         Raises:
             ValueError: If the cards list is empty.
         """
-        if self.game_type() in (GameType.PASS, GameType.NULL):
+        if game_type in (GameType.PASS, GameType.NULL):
             return 0
 
         if len(cards) == 0:
             raise ValueError("The hand cannot be empty.")
 
         allTops = [Card(Rank.JACK, suit) for suit in Suit]
-        if (trump := self.trump_suit()) is not None:
+        if (trump := self.trump_suit(game_type)) is not None:
             allTops += [Card(rank, trump) for rank in Rank if rank is not Rank.JACK]
-        allTops = [ComparableCard(card, self) for card in allTops]
+        allTops = [ComparableCard(card, self, game_type) for card in allTops]
         sortedAllTops = sorted(allTops, reverse=True)
         sortedCards = sorted(
-            [ComparableCard(card, self) for card in cards], reverse=True
+            [ComparableCard(card, self, game_type) for card in cards], reverse=True
         )
 
         withTops = sortedAllTops[0] == sortedCards[0]
@@ -194,10 +185,10 @@ class ISkO(AbstractRuleSet):
 
         return counter
 
-    def get_card_effective_rank_value(self, card: Card) -> int:
-        if self._game_type is GameType.PASS:
+    def get_card_effective_rank_value(self, card: Card, game_type: GameType) -> int:
+        if game_type is GameType.PASS:
             return 0
-        if self._game_type is GameType.NULL:
+        if game_type is GameType.NULL:
             return card.rank.value
         # Suit or Grand
         if card.rank is Rank.JACK:
@@ -213,23 +204,25 @@ class ISkO(AbstractRuleSet):
             Rank.EIGHT: 2,
             Rank.SEVEN: 1,
         }
-        if self.is_card_trump(card):
+        if self.is_card_trump(card, game_type):
             return 50 + trump_rank_map.get(card.rank, 0)
         return trump_rank_map.get(card.rank, 0)
 
-    def determine_trick_winner(self, trick: list[Card]) -> int:
+    def determine_trick_winner(self, trick: list[Card], game_type: GameType) -> int:
         assert len(trick) == 3
 
         winner = 0
 
         for i, c in enumerate(trick[1:]):
             if c.suit is trick[winner].suit and self.get_card_effective_rank_value(
-                trick[winner]
-            ) < self.get_card_effective_rank_value(c):
+                trick[winner], game_type
+            ) < self.get_card_effective_rank_value(c, game_type):
                 winner = i + 1
-            elif self.is_card_trump(c) and self.get_card_effective_rank_value(
-                trick[winner]
-            ) < self.get_card_effective_rank_value(c):
+            elif self.is_card_trump(
+                c, game_type
+            ) and self.get_card_effective_rank_value(
+                trick[winner], game_type
+            ) < self.get_card_effective_rank_value(c, game_type):
                 winner = i + 1
 
         return winner
@@ -256,7 +249,7 @@ class ISkO(AbstractRuleSet):
         declarer_player = players[declarer]
         declarer_points = points[declarer_player]
 
-        tops = self.tops(declarer_player.hand + list(skat))
+        tops = self.tops(declarer_player.hand + list(skat), game_type)
         tricks_scored = sum(1 for _, player in tricks if player == declarer_player)
         # ISkO 2.5.5
         is_schneider = declarer_points >= 90 or declarer_points <= 30
@@ -387,22 +380,28 @@ class ISkO(AbstractRuleSet):
             return True
 
     def is_valid_card_play(
-        self, player: Player, card: Card, first_card: Optional[Card]
+        self,
+        player: Player,
+        card: Card,
+        first_card: Optional[Card],
+        game_type: GameType,
     ) -> bool:
         # Player can not play card not available
         if card not in player.hand:
             return False
 
         # No card can be played if game is passed.
-        if self.game_type() is GameType.PASS:
+        if game_type is GameType.PASS:
             return False
         # Any card can be played if it is first
         if first_card is None:
             return True
 
         # If player has trump, he must follow
-        if self.is_card_trump(first_card) and self.has_trump(player):
-            return self.is_card_trump(card)
+        if self.is_card_trump(first_card, game_type) and self.has_trump(
+            player, game_type
+        ):
+            return self.is_card_trump(card, game_type)
 
         # If player has suit, he must follow
         if self.has_suit(player, first_card.suit):
@@ -463,7 +462,6 @@ class ISkO(AbstractRuleSet):
             multiplier += 1
 
         # TODO: tops need to include the Skat
-        self.set_game_type(game_type)
-        tops = self.tops(player.hand)
+        tops = self.tops(player.hand, game_type)
 
         return bid <= (tops + multiplier) * base_value

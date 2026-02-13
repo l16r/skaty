@@ -1,32 +1,20 @@
-from typing import Optional
 from pytest import raises
-from skaty.cards import Card
 from skaty.exceptions import InvalidActionError, InvalidGameStateError
 from skaty.game_state import GameState
 from skaty.isko import ISkO
 from skaty.player import Player
 from skaty.rules import (
-    AbstractRuleSet,
     BurySkat,
     DealCards,
     DeclareBid,
     DeclareGame,
     DrawSkat,
-    GamePhase,
     GameType,
     GiveUp,
     Listen,
     Pass,
     PlayCard,
 )
-
-
-def any_valid_card(player: Player, rules: AbstractRuleSet, first_card: Optional[Card]):
-    print(f"{first_card=}")
-    for c in player.hand:
-        if rules.is_valid_card_play(player, c, first_card):
-            return c
-    return player.hand[0]
 
 
 def test_valid_game():

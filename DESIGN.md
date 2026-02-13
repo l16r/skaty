@@ -87,19 +87,17 @@ class Player {
 }
 
 abstract class AbstractRuleSet {
-  + {abstract} game_type(): GameType
-  + {abstract} set_game_type(v: GameType)
-  + {abstract} trump_suit(): Optional[Suit]
-  + {abstract} is_card_trump(card: Card): bool
-  + {abstract} tops(cards: list[Card]): int
-  + {abstract} get_card_effective_rank_value(card: Card): int
-  + {abstract} determine_trick_winner(trick: list[Card]): int
+  + {abstract} trump_suit(game_type: GameType): Optional[Suit]
+  + {abstract} is_card_trump(card: Card, game_type: GameType): bool
+  + {abstract} tops(cards: list[Card], game_type: GameType): int
+  + {abstract} get_card_effective_rank_value(card: Card, game_type: GameType): int
+  + {abstract} determine_trick_winner(trick: list[Card], game_type: GameType): int
   + {abstract} calculate_game_score(players: list[Player], declarer: int, points: dict[Player, int], tricks: list[tuple[Trick, Player]], game_type: GameType, bid: int, skat: tuple[Card,Card], hand: bool=False, schneider_announced:bool=False, schwarz_announced:bool=False, ouvert:bool=False): int
   + {abstract} is_valid_action(action: Action, phase: GamePhase): bool
   + {abstract} get_action_types_for_phase(phase: GamePhase): list[type[Action]]
   + {abstract} get_next_valid_bid(current_bid: Optional[int]): int
   + {abstract} is_valid_bid(player: Player, bid: DeclareBid | Listen | Pass, previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]], player_pos: PlayerPosition, bidding_phase: BiddingPhase): bool
-  + {abstract} is_valid_card_play(player: Player, card: Card, first_card: Optional[Card]): bool
+  + {abstract} is_valid_card_play(player: Player, card: Card, first_card: Optional[Card], game_type: GameType): bool
   + {abstract} is_valid_game_declaration(player: Player, bid: int, game_type: GameType, hand: bool, schneider: bool=False, schwarz: bool=False, open: bool=False, hand_available: bool=True): bool
 }
 
@@ -140,7 +138,7 @@ class Trick {
   + @property first_card(): Optional[Card]
   + add_card(card: Card)
   + is_complete(): bool
-  + get_winner(rule_set: AbstractRuleSet): int
+  + get_winner(rule_set: AbstractRuleSet, game_type: GameType): int
   + get_trick_points(): int
 }
 

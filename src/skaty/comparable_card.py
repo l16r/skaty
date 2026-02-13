@@ -3,7 +3,7 @@ from functools import total_ordering
 
 from skaty.cards import Card
 from skaty.exceptions import IncompatibleRulesError
-from skaty.rules import AbstractRuleSet
+from skaty.rules import AbstractRuleSet, GameType
 
 
 @total_ordering
@@ -15,6 +15,7 @@ class ComparableCard:
 
     card: Card
     rule_set: AbstractRuleSet
+    game_type: GameType
 
     def __lt__(self, other: object) -> bool:
         if not isinstance(other, ComparableCard):
@@ -24,8 +25,12 @@ class ComparableCard:
                 "Cannot compare cards using different rule sets."
             )
 
-        self_value = self.rule_set.get_card_effective_rank_value(self.card)
-        other_value = self.rule_set.get_card_effective_rank_value(other.card)
+        self_value = self.rule_set.get_card_effective_rank_value(
+            self.card, self.game_type
+        )
+        other_value = self.rule_set.get_card_effective_rank_value(
+            other.card, self.game_type
+        )
         return self_value < other_value
 
     def __eq__(self, other: object) -> bool:

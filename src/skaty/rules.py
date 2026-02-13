@@ -148,19 +148,11 @@ class GiveUp(Action):
 
 class AbstractRuleSet(ABC):
     @abstractmethod
-    def game_type(self) -> GameType:
+    def trump_suit(self, game_type: GameType) -> Optional[Suit]:
         pass
 
     @abstractmethod
-    def set_game_type(self, v: GameType):
-        pass
-
-    @abstractmethod
-    def trump_suit(self) -> Optional[Suit]:
-        pass
-
-    @abstractmethod
-    def is_card_trump(self, card: Card) -> bool:
+    def is_card_trump(self, card: Card, game_type: GameType) -> bool:
         pass
 
     @abstractmethod
@@ -168,11 +160,11 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def get_card_effective_rank_value(self, card: Card) -> int:
+    def get_card_effective_rank_value(self, card: Card, game_type: GameType) -> int:
         pass
 
     @abstractmethod
-    def determine_trick_winner(self, trick: list[Card]) -> int:
+    def determine_trick_winner(self, trick: list[Card], game_type: GameType) -> int:
         pass
 
     @abstractmethod
@@ -221,7 +213,11 @@ class AbstractRuleSet(ABC):
 
     @abstractmethod
     def is_valid_card_play(
-        self, player: Player, card: Card, first_card: Optional[Card]
+        self,
+        player: Player,
+        card: Card,
+        first_card: Optional[Card],
+        game_type: GameType,
     ) -> bool:
         pass
 

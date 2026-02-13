@@ -3,7 +3,7 @@ from typing import Optional
 
 from skaty.cards import Card
 from skaty.exceptions import InvalidGameStateError
-from skaty.rules import AbstractRuleSet
+from skaty.rules import AbstractRuleSet, GameType
 
 
 class Trick:
@@ -27,13 +27,13 @@ class Trick:
     def is_complete(self):
         return len(self._cards) == 3
 
-    def get_winner(self, rule_set: AbstractRuleSet) -> int:
+    def get_winner(self, rule_set: AbstractRuleSet, game_type: GameType) -> int:
         """
         Get the index of the winner in the trick in the order the trick was played.
         """
         if not self.is_complete():
             raise InvalidGameStateError("Trick not complete. Cannot calculate winner.")
-        return rule_set.determine_trick_winner(self._cards)
+        return rule_set.determine_trick_winner(self._cards, game_type)
 
     def get_trick_points(self) -> int:
         """

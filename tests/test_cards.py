@@ -1,5 +1,5 @@
 from skaty.cards import Card, Rank, Suit, create_deck, shuffle_deck
-from skaty.exceptions import InvalidGameStateError, InvalidPlayError
+from skaty.exceptions import InvalidGameStateError
 from skaty.isko import ISkO
 from skaty.rules import GameType
 from skaty.trick import Trick
@@ -110,4 +110,4 @@ def test_trick_first_card():
 def test_trick_get_winner():
     t = Trick()
     with pytest.raises(InvalidGameStateError):
-        t.get_winner(ISkO())
+        t.get_winner(ISkO(), GameType.DIAMONDS)
