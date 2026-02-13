@@ -218,7 +218,7 @@ class GameState:
                     open,
                     self._hand_available,
                 ):
-                    return False
+                    raise InvalidActionError("Game declaration not possible.")
                 self._rule_set.set_game_type(game_type)
                 self._game_type = game_type
                 self._declaration = (hand, schneider, schwarz, open)
