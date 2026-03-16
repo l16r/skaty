@@ -12,6 +12,10 @@ class InvalidPlayError(SkatyError):
     """Raised when an illegal move is attempted (e.g. not following suit)."""
 
 
+class InvalidGameTypeError(SkatyError):
+    """Raised when an invalid game type is passed as an argument (e.g. passing GameType.PASS for is_valid_game_declaration)."""
+
+
 class InvalidDeclarationError(SkatyError):
     """Raised when a declaration violates the rules."""
 

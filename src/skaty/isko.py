@@ -1,12 +1,11 @@
-from typing import Literal, Optional, Union
+from typing import Optional
 
 from skaty.cards import Card, Rank, Suit
 from skaty.comparable_card import ComparableCard
 from skaty.exceptions import (
-    InvalidActionError,
     InvalidBidError,
     InvalidDeclarationError,
-    InvalidPlayError,
+    InvalidGameTypeError,
 )
 from skaty.player import Player
 from skaty.rules import (
@@ -191,8 +190,14 @@ class ISkO(AbstractRuleSet):
         return counter
 
     def get_card_effective_rank_value(self, card: Card, game_type: GameType) -> int:
+        """
+        Returns a value representing a cards relative strength in a game type.
+
+        Raises:
+            InvalidGameTypeError: If game_type is GameType.PASS.
+        """
         if game_type is GameType.PASS:
-            return 0
+            raise InvalidGameTypeError
         if game_type is GameType.NULL:
             return card.rank.value
         # Suit or Grand
@@ -448,10 +453,11 @@ class ISkO(AbstractRuleSet):
         Determines if the arguments represent a valid game declaration given the bid value. The multipliers must be applied correctly. The most favorable scenario for the player (i.e. assuming playing Schwarz) must give him enough points to achieve the bid. When playing hand, the skat is ignored from tops, as the player possesses no information about it.
 
         Raises:
-            InvalidDeclarationError: If game_type is GameType.PASS or bid is invalid.
+            InvalidDeclarationError: If bid is invalid.
+            InvalidGameTypeError: If game_type is GameType.PASS.
         """
         if game_type is GameType.PASS:
-            raise InvalidDeclarationError(
+            raise InvalidGameTypeError(
                 "A game declaration can not be made with GameType.PASS."
             )
         if bid not in self._VALID_BIDS:

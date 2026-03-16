@@ -1,9 +1,9 @@
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from typing import Any, ContextManager, NamedTuple
+from typing import Any, ContextManager
 import pytest
 from skaty.cards import Card, Rank, Suit
-from skaty.exceptions import InvalidDeclarationError, InvalidPlayError
+from skaty.exceptions import InvalidDeclarationError, InvalidGameTypeError
 from skaty.game_state import GameState
 from skaty.isko import ISkO
 from skaty.player import Player
@@ -20,16 +20,13 @@ from skaty.rules import (
     PlayerPosition,
 )
 
-isko = ISkO
+isko = ISkO()
 player_with_one = Player("with one", hand=[Card(Rank.JACK, Suit.CLUBS)])
 player_without_four = Player("without four", hand=[Card(Rank.ACE, Suit.DIAMONDS)])
 
 
 def test_get_card_effective_rank_value():
-    ruleset = ISkO()
     test_data = [
-        (GameType.PASS, Card(Rank.JACK, Suit.CLUBS), 0),
-        #
         (GameType.CLUBS, Card(Rank.JACK, Suit.CLUBS), 103),
         (GameType.CLUBS, Card(Rank.JACK, Suit.SPADES), 102),
         (GameType.CLUBS, Card(Rank.JACK, Suit.HEARTS), 101),
@@ -82,7 +79,10 @@ def test_get_card_effective_rank_value():
     ]
 
     for test in test_data:
-        assert ruleset.get_card_effective_rank_value(test[1], test[0]) == test[2]
+        assert isko.get_card_effective_rank_value(test[1], test[0]) == test[2]
+
+    with pytest.raises(InvalidGameTypeError):
+        isko.get_card_effective_rank_value(Card(Rank.ACE, Suit.DIAMONDS), GameType.PASS)
 
 
 def test_is_valid_card_play():
@@ -473,7 +473,7 @@ class GameDeclarationTestCase:
             skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
             bid=18,
             type=GameType.PASS,
-            expectation=pytest.raises(InvalidDeclarationError),
+            expectation=pytest.raises(InvalidGameTypeError),
             expected_result=False,
         ),
         GameDeclarationTestCase(
@@ -548,9 +548,8 @@ class GameDeclarationTestCase:
     ids=lambda c: c.id,
 )
 def test_is_valid_game_declaration(case: GameDeclarationTestCase):
-    ruleset = ISkO()
     with case.expectation:
-        result = ruleset.is_valid_game_declaration(
+        result = isko.is_valid_game_declaration(
             case.player,
             case.skat,
             case.bid,
