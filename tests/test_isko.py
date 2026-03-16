@@ -1,6 +1,6 @@
 from contextlib import nullcontext
 from dataclasses import dataclass, field
-from typing import Any, ContextManager
+from typing import Any, ContextManager, Optional
 import pytest
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import InvalidDeclarationError, InvalidGameTypeError
@@ -85,122 +85,105 @@ def test_get_card_effective_rank_value():
         isko.get_card_effective_rank_value(Card(Rank.ACE, Suit.DIAMONDS), GameType.PASS)
 
 
-def test_is_valid_card_play():
-    test_data = [
-        (
-            GameType.DIAMONDS,  # Game type
-            [
-                Card(Rank.JACK, Suit.CLUBS),
-                Card(Rank.SEVEN, Suit.DIAMONDS),
-            ],  # Player.hand
-            Card(Rank.ACE, Suit.DIAMONDS),  # First card in trick
-            Card(Rank.JACK, Suit.CLUBS),  # Second card in trick
-            True,  # Expected result
-        ),
-        (
-            GameType.DIAMONDS,
-            [],
-            Card(Rank.TEN, Suit.SPADES),
-            Card(Rank.JACK, Suit.CLUBS),
-            False,
-        ),
-        (
-            GameType.DIAMONDS,
-            [Card(Rank.JACK, Suit.CLUBS)],
-            Card(Rank.TEN, Suit.SPADES),
-            Card(Rank.JACK, Suit.CLUBS),
-            True,
-        ),
-        (
-            GameType.DIAMONDS,
-            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.SEVEN, Suit.DIAMONDS)],
-            Card(Rank.ACE, Suit.SPADES),
-            Card(Rank.JACK, Suit.CLUBS),
-            True,
-        ),
-        (
-            GameType.DIAMONDS,
-            [Card(Rank.KING, Suit.CLUBS), Card(Rank.SEVEN, Suit.DIAMONDS)],
-            Card(Rank.ACE, Suit.SPADES),
-            Card(Rank.SEVEN, Suit.DIAMONDS),
-            True,
-        ),
-        (
-            GameType.SPADES,
-            [Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
-            Card(Rank.ACE, Suit.SPADES),
-            Card(Rank.SEVEN, Suit.DIAMONDS),
-            False,
-        ),
-        (
-            GameType.SPADES,
-            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
-            Card(Rank.ACE, Suit.SPADES),
-            Card(Rank.JACK, Suit.HEARTS),
-            True,
-        ),
-        (
-            GameType.GRAND,
-            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
-            Card(Rank.JACK, Suit.SPADES),
-            Card(Rank.JACK, Suit.HEARTS),
-            True,
-        ),
-        (
-            GameType.GRAND,
-            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.SEVEN, Suit.SPADES)],
-            Card(Rank.JACK, Suit.SPADES),
-            Card(Rank.SEVEN, Suit.SPADES),
-            False,
-        ),
-        (
-            GameType.NULL,
-            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
-            Card(Rank.JACK, Suit.SPADES),
-            Card(Rank.JACK, Suit.HEARTS),
-            False,
-        ),
-        (
-            GameType.NULL,
-            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.SEVEN, Suit.SPADES)],
-            Card(Rank.JACK, Suit.SPADES),
-            Card(Rank.SEVEN, Suit.SPADES),
-            True,
-        ),
-        (
-            GameType.PASS,
-            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
-            Card(Rank.JACK, Suit.SPADES),
-            Card(Rank.JACK, Suit.HEARTS),
-            False,
-        ),
-        (
-            GameType.GRAND,
-            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
-            None,
-            Card(Rank.JACK, Suit.HEARTS),
-            True,
-        ),
-        (
-            GameType.DIAMONDS,
-            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
-            None,
-            Card(Rank.SEVEN, Suit.SPADES),
-            True,
-        ),
-        (
-            GameType.SPADES,
-            [Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
-            None,
-            Card(Rank.SEVEN, Suit.SPADES),
-            True,
-        ),
-    ]
-    ruleset = ISkO()
+@dataclass
+class IsValidCardPlayTestCase:
+    id: str
+    game_type: GameType
+    hand: list[Card]
+    play_card: Card
+    first_card: Optional[Card] = None
+    expected_result: bool = True
 
-    for test in test_data:
-        p = Player("test", test[1])
-        assert ruleset.is_valid_card_play(p, test[3], test[2], test[0]) == test[4]
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        IsValidCardPlayTestCase(
+            id="card_not_in_hand",
+            game_type=GameType.DIAMONDS,
+            hand=[Card(Rank.ACE, Suit.DIAMONDS)],
+            play_card=Card(Rank.KING, Suit.DIAMONDS),
+            expected_result=False,
+        ),
+        IsValidCardPlayTestCase(
+            id="pass",
+            game_type=GameType.PASS,
+            hand=[Card(Rank.ACE, Suit.DIAMONDS)],
+            play_card=Card(Rank.ACE, Suit.DIAMONDS),
+            expected_result=False,
+        ),
+        IsValidCardPlayTestCase(
+            id="no_first_card",
+            game_type=GameType.DIAMONDS,
+            hand=[Card(Rank.ACE, Suit.DIAMONDS)],
+            play_card=Card(Rank.ACE, Suit.DIAMONDS),
+        ),
+        IsValidCardPlayTestCase(
+            id="following_trump",
+            game_type=GameType.DIAMONDS,
+            hand=[Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
+            play_card=Card(Rank.JACK, Suit.HEARTS),
+            first_card=Card(Rank.KING, Suit.DIAMONDS),
+        ),
+        IsValidCardPlayTestCase(
+            id="not_following_trump",
+            game_type=GameType.DIAMONDS,
+            hand=[Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
+            play_card=Card(Rank.SEVEN, Suit.SPADES),
+            first_card=Card(Rank.KING, Suit.DIAMONDS),
+            expected_result=False,
+        ),
+        IsValidCardPlayTestCase(
+            id="following_suit",
+            game_type=GameType.SPADES,
+            hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
+            play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
+            first_card=Card(Rank.KING, Suit.DIAMONDS),
+        ),
+        IsValidCardPlayTestCase(
+            id="not_following_suit",
+            game_type=GameType.SPADES,
+            hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
+            play_card=Card(Rank.SEVEN, Suit.SPADES),
+            first_card=Card(Rank.KING, Suit.DIAMONDS),
+            expected_result=False,
+        ),
+        IsValidCardPlayTestCase(
+            id="cannot_follow_suit",
+            game_type=GameType.SPADES,
+            hand=[Card(Rank.SEVEN, Suit.SPADES)],
+            play_card=Card(Rank.SEVEN, Suit.SPADES),
+            first_card=Card(Rank.SEVEN, Suit.DIAMONDS),
+        ),
+        IsValidCardPlayTestCase(
+            id="null_follow_suit",
+            game_type=GameType.NULL,
+            hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
+            play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
+            first_card=Card(Rank.KING, Suit.DIAMONDS),
+        ),
+        IsValidCardPlayTestCase(
+            id="null_not_follow_suit",
+            game_type=GameType.NULL,
+            hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
+            play_card=Card(Rank.SEVEN, Suit.SPADES),
+            first_card=Card(Rank.KING, Suit.DIAMONDS),
+            expected_result=False,
+        ),
+        IsValidCardPlayTestCase(
+            id="null_cannot_follow_suit",
+            game_type=GameType.NULL,
+            hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
+            play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
+            first_card=Card(Rank.KING, Suit.CLUBS),
+        ),
+    ],
+    ids=lambda c: c.id,
+)
+def test_is_valid_card_play(case: IsValidCardPlayTestCase):
+    assert case.expected_result == isko.is_valid_card_play(
+        Player("test", hand=case.hand), case.play_card, case.first_card, case.game_type
+    )
 
 
 @dataclass

@@ -412,7 +412,7 @@ class ISkO(AbstractRuleSet):
         game_type: GameType,
     ) -> bool:
         """
-        Determines if player can play card in a trick started with first_card in some GameType. For an empty trick, first_card is None.
+        Determines if player can play card in a trick started with first_card in some GameType. For an empty trick, first_card is None. If game_type is GameType.PASS always returns False regardless of card and first_card.
         """
         # Player can not play card not available
         if card not in player.hand:
