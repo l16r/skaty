@@ -122,4 +122,4 @@ def test_null_game_edge_cases():
     game.apply_action(p0, Pass())
 
     with raises(InvalidActionError):
-        game.apply_action(p2, DeclareGame(GameType.NULL, True, False, False, True))
+        game.apply_action(p2, DeclareGame(GameType.NULL, False, False, False))

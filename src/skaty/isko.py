@@ -2,7 +2,12 @@ from typing import Literal, Optional, Union
 
 from skaty.cards import Card, Rank, Suit
 from skaty.comparable_card import ComparableCard
-from skaty.exceptions import InvalidBidError, InvalidPlayError
+from skaty.exceptions import (
+    InvalidActionError,
+    InvalidBidError,
+    InvalidDeclarationError,
+    InvalidPlayError,
+)
 from skaty.player import Player
 from skaty.rules import (
     AbstractRuleSet,
@@ -306,13 +311,25 @@ class ISkO(AbstractRuleSet):
         action: Action,
         phase: GamePhase,
     ) -> bool:
+        """
+        Tests if action is possible in game phase. Does not imply the particular action itself is valid (e.g. for Bid(17), GamePhase.BIDDING it would return True, as Bid is a valid action in bidding even though Bid(17) itself is not valid).
+        """
         allowed_phases = self._PHASE_RULES.get(type(action), [])
         return phase in allowed_phases
 
     def get_action_types_for_phase(self, phase: GamePhase) -> list[type[Action]]:
+        """
+        Returns all valid action types for a given phase.
+        """
         return [at for at, phases in self._PHASE_RULES.items() if phase in phases]
 
     def get_next_valid_bid(self, current_bid: Optional[int]) -> int:
+        """
+        Calculates the next valid bid.
+
+        Raises:
+            InvalidBidError: If no higher bid is possible.
+        """
         if current_bid is None:
             return 18
         sorted_bids = sorted(self._VALID_BIDS)
@@ -329,7 +346,10 @@ class ISkO(AbstractRuleSet):
         player_pos: PlayerPosition,
         bidding_phase: BiddingPhase,
     ) -> bool:
-        # Check if player has passed before
+        """
+        Determines if bid is valid for player in player_pos in the context of previous_bids and bidding_phase.
+        """
+        # Check if player has passed before.
         for b in previous_bids:
             if b[0] == player and isinstance(b[1], Pass):
                 return False
@@ -386,6 +406,9 @@ class ISkO(AbstractRuleSet):
         first_card: Optional[Card],
         game_type: GameType,
     ) -> bool:
+        """
+        Determines if player can play card in a trick started with first_card in some GameType. For an empty trick, first_card is None.
+        """
         # Player can not play card not available
         if card not in player.hand:
             return False
@@ -407,48 +430,50 @@ class ISkO(AbstractRuleSet):
         if self.has_suit(player, first_card.suit):
             return card.suit is first_card.suit
 
+        # Otherwise, any card is valid
         return True
 
     def is_valid_game_declaration(
         self,
         player: Player,
+        skat: tuple[Card, Card],
         bid: int,
         game_type: GameType,
         hand: bool,
-        schneider: bool = False,
-        schwarz: bool = False,
-        open: bool = False,
-        hand_available: bool = True,
+        schneider: bool,
+        schwarz: bool,
+        open: bool,
     ) -> bool:
+        """
+        Determines if the arguments represent a valid game declaration given the bid value. The multipliers must be applied correctly. The most favorable scenario for the player (i.e. assuming playing Schwarz) must give him enough points to achieve the bid. When playing hand, the skat is ignored from tops, as the player possesses no information about it.
+
+        Raises:
+            InvalidDeclarationError: If game_type is GameType.PASS or bid is invalid.
+        """
         if game_type is GameType.PASS:
-            return True
+            raise InvalidDeclarationError(
+                "A game declaration can not be made with GameType.PASS."
+            )
         if bid not in self._VALID_BIDS:
-            return False
+            raise InvalidDeclarationError("Invalid bid value.")
 
         if game_type is GameType.NULL:
             # ISkO 2.4.2
-            if open and hand and hand_available:
+            if open and hand:
                 return bid <= 59
-            if open:
+            elif open:
                 return bid <= 46
-            if hand and hand_available:
+            elif hand:
                 return bid <= 35
             return bid <= 23
 
-        if (hand or schneider or schwarz or open) and not hand_available:
-            raise InvalidPlayError("Can only play hand if the Skat has not been drawn.")
-        elif (schneider or schwarz or open) and not (hand_available and hand):
-            raise InvalidPlayError(
-                "Can only play Schneider, Schwarz or open if hand is available and used."
-            )
-        if (schwarz or open) and not (hand_available and hand and schneider):
-            raise InvalidPlayError(
-                "Can only play Schwarz if hand is avaible and used with Schneider declaration."
-            )
-        if open and not (hand_available and hand and schneider and schwarz):
-            raise InvalidPlayError(
-                "Can only play Schwarz if hand is avaible and used with Schneider Schwarz declaration."
-            )
+        # Check multiplier validity. Open requires Schwarz requires Schneider requires Hand.
+        if schneider and not hand:
+            return False
+        elif schwarz and not (hand and schneider):
+            return False
+        elif open and not (hand and schneider and schwarz):
+            return False
 
         base_value = game_type.value
         multiplier = 1
@@ -461,7 +486,11 @@ class ISkO(AbstractRuleSet):
         if open and schwarz and schneider and hand:
             multiplier += 1
 
-        # TODO: tops need to include the Skat
-        tops = self.tops(player.hand, game_type)
+        # The declaration is based upon the knowledge of the player.
+        if hand:
+            tops = self.tops(player.hand, game_type)
+        else:
+            tops = self.tops(player.hand + list(skat), game_type)
 
-        return bid <= (tops + multiplier) * base_value
+        # If the player plays Schwarz, he also gets one multiplier for each playing Schneider and Schwarz.
+        return bid <= (tops + multiplier + 2) * base_value

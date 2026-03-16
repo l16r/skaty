@@ -18,6 +18,12 @@ class ComparableCard:
     game_type: GameType
 
     def __lt__(self, other: object) -> bool:
+        """
+        Compares to another card based on rule_set.
+
+        Raises:
+            IncomptabileRulesError: If both cards have another ruleset.
+        """
         if not isinstance(other, ComparableCard):
             return False
         if self.rule_set is not other.rule_set:

@@ -47,7 +47,7 @@ class GameType(IntEnum):
     Basic values for suit, grand and null games according to ISkO 2.4.1, 2.4.2. Null {hand|ouvert} are respected in the rule sets calculate_game_score method.
     """
 
-    PASS = 0
+    PASS = 0  # used in case a game is passed during bidding
     DIAMONDS = 9
     HEARTS = 10
     SPADES = 11
@@ -133,7 +133,7 @@ class DeclareGame(Action):
     """Declare specific game"""
 
     game_type: GameType
-    hand: bool
+    # Hand is always implied by drawing or not drawing the Skat.
     schneider: bool = False
     schwarz: bool = False
     open: bool = False
@@ -225,12 +225,12 @@ class AbstractRuleSet(ABC):
     def is_valid_game_declaration(
         self,
         player: Player,
+        skat: tuple[Card, Card],
         bid: int,
         game_type: GameType,
         hand: bool,
-        schneider: bool = False,
-        schwarz: bool = False,
-        open: bool = False,
-        hand_available: bool = True,
+        schneider: bool,
+        schwarz: bool,
+        open: bool,
     ) -> bool:
         pass

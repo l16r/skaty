@@ -28,30 +28,39 @@ class GameState:
     _players: list[Player]
     # Currently active player. Do not confuse with _declarer.
     _active_player: int
-    _trick: Trick
-    # Some ruleset to consider during game. Could be ISkO or some extension.
+
+    # Ruleset to consider during game. Could be ISkO or some extension.
     _rule_set: AbstractRuleSet
-    _game_type: GameType
+    _phase: GamePhase
+
+    # Current trick.
+    _trick: Trick
+    # List of past tricks.
     _trick_history: list[tuple[Trick, Player]]
     # List of all actions with their player in chronological order.
     _action_history: list[tuple[Player, Action]]
+    # Stack with previous game states that changed with an action.
     _undo_stack: list[dict[str, Any]]
-    # Highgest bid observed. Can also be calculated by considering _action_history.
+
+    # Highgest bid observed.
     _bid: Optional[int]
     _bidding_phase: BiddingPhase
-    _phase: GamePhase
+    # Players relative to dealer during bidding. Does not represent position in trick.
+    _forehand: int
+    _middlehand: int
+    _backhand: int
     # None during GamePhase.DECLARATION between drawing skat and burying skat.
     _skat: Optional[tuple[Card, Card]]
-    # Points each player scored. Can also be calculated by considering _trick_history.
+
+    # Points each player scored.
     _points: dict[Player, int]
+    # Has the declarer not looked at the Skat.
     _hand_available: bool
     # Contains the game result in GamePhase.WON or GamePhase.LOST. Can also be calculated by calling calculate_game_score().
     _game_result: int
     # Declarer, constant after game was bid. None if game is before GamePhase.BID or in GamePhase.PASSED.
     _declarer: Optional[int]
-    _forehand: int
-    _middlehand: int
-    _backhand: int
+    _game_type: GameType
     # The game declared (hand, schneider announced, schwarz announced, ouvert)
     _declaration: tuple[bool, bool, bool, bool]
     _log: bool
@@ -73,26 +82,30 @@ class GameState:
             raise InvalidGameStateError("A game must consist of 3 players.")
         self._players = players
         self._active_player = dealer
+
+        self._rule_set = rule_set
+        self._phase = GamePhase.PRE_DEAL
+
+        self._trick = Trick()
+        self._trick_history = []
+        self._action_history = []
+        self._undo_stack = []
+
+        self._bid = None
+        self._bidding_phase = BiddingPhase.ForehandMiddlehand
         self._forehand = (dealer + 1) % 3
         self._middlehand = (dealer + 2) % 3
         self._backhand = dealer
-        self._trick = Trick()
-        self._rule_set = rule_set
-        self._game_type = GameType.PASS
-        self._bid = None
-        self._bidding_phase = BiddingPhase.ForehandMiddlehand
-        self._action_history = []
-        self._undo_stack = []
-        self._trick_history = []
-        self._phase = GamePhase.PRE_DEAL
         self._skat = None
+
         self._points = dict()
+        self._hand_available = True
         self._points[players[0]] = 0
         self._points[players[1]] = 0
         self._points[players[2]] = 0
-        self._hand_available = True
         self._game_result = 0
         self._declarer = None
+        self._game_type = GameType.PASS
         self._log = log
 
     @property
@@ -121,21 +134,26 @@ class GameState:
             self._declaration[3],
         )
 
-    def apply_action(self, player: Player, action: Action) -> bool:
+    def apply_action(self, player: Player, action: Action):
         """
         Tries to apply the action to the game.
 
-        Returns:
-            A boolean indicating if the action has been applied or not. In the latter case, the action can be considered illegal.
-
         Raises:
             InvalidPlayError: If the player tries to play a card it does not have.
-            InvalidActionError: If the player is not active.
+            InvalidActionError: If the player is not active or the action is illegal.
+            InvalidGameStateError: If the action is not valid during current phase.
         """
+
         if not self._rule_set.is_valid_action(action, self._phase):
             raise InvalidGameStateError(
                 f"Action {action} is not possible during {self._phase.name}"
             )
+
+        if player != self._players[self._active_player]:
+            raise InvalidActionError(
+                f"Player {player} cannot {action} because he is not active."
+            )
+
         if isinstance(
             action, (DeclareBid, Listen, Pass)
         ) and not self._rule_set.is_valid_bid(
@@ -146,11 +164,8 @@ class GameState:
             self._bidding_phase,
         ):
             raise InvalidActionError(f"Bid {action} is not possible.")
-        if player != self._players[self._active_player]:
-            raise InvalidActionError(
-                f"Player {player} can not {action} because he is not active."
-            )
 
+        # Current states that might change after action is applied.
         memento = {
             "phase": self._phase,
             "active_player": self._active_player,
@@ -166,6 +181,7 @@ class GameState:
         if self._log:
             print(f"Player {player} plays {action}.")
 
+        # Apply the action.
         match action:
             case DealCards():
                 shuffled = shuffle_deck(create_deck())
@@ -179,7 +195,7 @@ class GameState:
                     player, played_card, self._trick.first_card, self._game_type
                 ):
                     raise InvalidPlayError(
-                        f"Can not play {played_card}, because it is illegal."
+                        f"Cannot play {played_card}, because it is illegal."
                     )
 
                 memento["trick_cards"] = self._trick.cards
@@ -188,18 +204,17 @@ class GameState:
                 self._trick.add_card(played_card)
 
                 if self._trick.is_complete():
-                    memento["trick_winner"] = self._trick.get_winner(
-                        self._rule_set, self._game_type
-                    )
                     memento["points_snapshot"] = {
                         p: self._points[p] for p in self._players
                     }
 
                     points = self._trick.get_trick_points()
-                    winner = self._trick.get_winner(
-                        self._rule_set, self._game_type
-                    )  # index in trick order
-                    current_player = self._players.index(player)  # last to play
+                    # Index of winner in trick order
+                    winner = self._trick.get_winner(self._rule_set, self._game_type)
+
+                    # Last to play
+                    current_player = self._players.index(player)
+
                     first_player = (current_player - 2) % 3
                     winner_player_index = (first_player + winner) % 3
                     winner_player = self._players[winner_player_index]
@@ -210,7 +225,9 @@ class GameState:
                     self._trick = Trick()
             case DrawSkat():
                 if self._skat is None:
-                    return False
+                    raise InvalidActionError(
+                        "Cannot draw Skat, because it is already drawn."
+                    )
                 assert len(self._skat) == 2
                 assert self._declarer is not None
 
@@ -221,7 +238,9 @@ class GameState:
                 self._skat = None
             case BurySkat(cards):
                 if self._skat is not None:
-                    return False
+                    raise InvalidActionError(
+                        "Cannot bury Skat, because it has not been drawn."
+                    )
                 assert not self._hand_available
                 assert len(cards) == 2
                 assert self._declarer is not None
@@ -233,31 +252,30 @@ class GameState:
                     self._players[self._declarer].play_card(c)
             case DeclareBid(bid=value):
                 self._bid = value
-            case DeclareGame(game_type, hand, schneider, schwarz, open):
+            case DeclareGame(game_type, schneider, schwarz, open):
                 if self._skat is None:
                     raise InvalidGameStateError("Skat must be buried before declaring.")
                 assert self._bid is not None
 
                 if not self._rule_set.is_valid_game_declaration(
                     self._players[self._active_player],
+                    self._skat,
                     self._bid,
                     game_type,
-                    hand,
+                    self._hand_available,
                     schneider,
                     schwarz,
                     open,
-                    self._hand_available,
                 ):
                     raise InvalidActionError("Game declaration not possible.")
                 self._game_type = game_type
-                self._declaration = (hand, schneider, schwarz, open)
+                self._declaration = (self._hand_available, schneider, schwarz, open)
             case GiveUp():
                 self._game_result = self.calculate_game_score()
 
         self._undo_stack.append(memento)
         self._action_history.append((player, action))
         self._advance_turn(action)
-        return True
 
     def undo_action(self):
         if not self._undo_stack:
@@ -269,7 +287,7 @@ class GameState:
         if isinstance(action, PlayCard):
             # Was the trick finished?
             if self._trick.len == 0 and self._trick_history:
-                last_trick, winner = self._trick_history.pop()
+                last_trick, _ = self._trick_history.pop()
                 self._trick = last_trick
                 # Reset points
                 self._points = m["points_snapshot"]
@@ -327,7 +345,7 @@ class GameState:
                 ):
                     yield DeclareBid(next_bid)
 
-            elif action_type in (Pass, Listen, DrawSkat, DealCards):
+            elif action_type in (Pass, Listen, DealCards):
                 action = action_type()
                 if action_type in (Pass, Listen):
                     if self._rule_set.is_valid_bid(
@@ -341,12 +359,19 @@ class GameState:
                 else:
                     yield action
 
+            elif action_type is DrawSkat and self._hand_available:
+                yield DrawSkat()
+
             elif action_type is BurySkat and self._skat is None:
                 all_cards = player.hand
                 for combo in itertools.combinations(all_cards, 2):
                     yield BurySkat(combo)
 
-            elif action_type is DeclareGame and self._skat is not None:
+            elif (
+                action_type is DeclareGame
+                and self._skat is not None
+                and self._bid is not None
+            ):
                 # TODO: also use hand, ouvert, etc.
                 for gt in [
                     GameType.DIAMONDS,
@@ -357,7 +382,14 @@ class GameState:
                     GameType.NULL,
                 ]:
                     if self._rule_set.is_valid_game_declaration(
-                        player, self._bid or 0, gt, self._hand_available
+                        player,
+                        self._skat,
+                        self._bid,
+                        gt,
+                        self._hand_available,
+                        False,
+                        False,
+                        False,
                     ):
                         yield DeclareGame(gt, self._hand_available)
 
@@ -444,19 +476,6 @@ class GameState:
         if passes == 2 and other_has_bid:
             self._phase = GamePhase.DECLARATION
             self._declarer = self._active_player
-
-    def serialize(self) -> dict[str, Any]:
-        return {
-            "phase": self._phase.value,
-            "active_player": self._active_player,
-            "bid": self._bid or 0,
-            "game_type": self._game_type.value,
-            "player_hands": [[c.uid for c in p.hand] for p in self._players],
-            "trick": [c.uid for c in self._trick.cards],
-            "skat": [c.uid for c in self._skat] if self._skat else [],
-            "points": [self._points[p] for p in self._players],
-            "declarer": self._declarer if self._declarer is not None else -1,
-        }
 
     def get_unseen_cards(self, viewer: Player) -> list[Card]:
         """

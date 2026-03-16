@@ -12,6 +12,10 @@ class InvalidPlayError(SkatyError):
     """Raised when an illegal move is attempted (e.g. not following suit)."""
 
 
+class InvalidDeclarationError(SkatyError):
+    """Raised when a declaration violates the rules."""
+
+
 class InvalidBidError(SkatyError):
     """Raised when an illegal bid is made."""
 
