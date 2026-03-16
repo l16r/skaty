@@ -8,16 +8,8 @@ class InvalidGameStateError(SkatyError):
     """Raised if an operation is performed in an invalid game state (e.g. playing a card before a trick starts)"""
 
 
-class InvalidPlayError(SkatyError):
-    """Raised when an illegal move is attempted (e.g. not following suit)."""
-
-
 class InvalidGameTypeError(SkatyError):
     """Raised when an invalid game type is passed as an argument (e.g. passing GameType.PASS for is_valid_game_declaration)."""
-
-
-class InvalidDeclarationError(SkatyError):
-    """Raised when a declaration violates the rules."""
 
 
 class InvalidBidError(SkatyError):
@@ -26,6 +18,18 @@ class InvalidBidError(SkatyError):
 
 class InvalidActionError(SkatyError):
     """Raised when an illegal action is tried (e.g. acting when not being the active player)."""
+
+
+class InvalidDeclarationError(InvalidActionError):
+    """Raised when a declaration violates the rules."""
+
+
+class InvalidPlayError(InvalidActionError):
+    """Raised when an illegal move is attempted (e.g. not following suit)."""
+
+
+class NoCardsError(SkatyError):
+    """Raised when no cards are passed where there should be some."""
 
 
 class IncompatibleRulesError(SkatyError):

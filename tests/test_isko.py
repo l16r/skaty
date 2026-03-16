@@ -1,9 +1,10 @@
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from typing import Any, ContextManager, Optional
+from _pytest.mark import expression
 import pytest
 from skaty.cards import Card, Rank, Suit
-from skaty.exceptions import InvalidDeclarationError, InvalidGameTypeError
+from skaty.exceptions import InvalidDeclarationError, InvalidGameTypeError, NoCardsError
 from skaty.game_state import GameState
 from skaty.isko import ISkO
 from skaty.player import Player
@@ -545,40 +546,67 @@ def test_is_valid_game_declaration(case: GameDeclarationTestCase):
         assert result == case.expected_result
 
 
-def test_tops():
-    test_cases = [
-        (
-            GameType.NULL,
-            [
+@dataclass
+class TopsTestCase:
+    id: str
+    game_type: GameType
+    cards: list[Card]
+
+    expected_result: int = 0
+    expectation: ContextManager[Any] = field(default_factory=nullcontext)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        TopsTestCase(
+            id="no_cards",
+            game_type=GameType.DIAMONDS,
+            cards=[],
+            expectation=pytest.raises(NoCardsError),
+        ),
+        TopsTestCase(
+            id="null",
+            game_type=GameType.NULL,
+            cards=[
                 Card(Rank.JACK, Suit.CLUBS),
-                Card(Rank.JACK, Suit.HEARTS),
-                Card(Rank.ACE, Suit.CLUBS),
             ],
-            0,
+            expectation=pytest.raises(InvalidGameTypeError),
         ),
-        (
-            GameType.PASS,
-            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.HEARTS)],
-            0,
+        TopsTestCase(
+            id="pass",
+            game_type=GameType.PASS,
+            cards=[Card(Rank.JACK, Suit.CLUBS)],
+            expectation=pytest.raises(InvalidGameTypeError),
         ),
-        (
-            GameType.HEARTS,
-            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.HEARTS)],
-            1,
+        TopsTestCase(
+            id="suit_with_1",
+            game_type=GameType.HEARTS,
+            cards=[Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.HEARTS)],
+            expected_result=1,
         ),
-        (
-            GameType.HEARTS,
-            [Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.SPADES)],
-            2,
+        TopsTestCase(
+            id="suit_without_1",
+            game_type=GameType.HEARTS,
+            cards=[Card(Rank.JACK, Suit.DIAMONDS), Card(Rank.JACK, Suit.SPADES)],
+            expected_result=1,
         ),
-        (
-            GameType.HEARTS,
-            [Card(Rank.JACK, Suit.DIAMONDS), Card(Rank.JACK, Suit.SPADES)],
-            1,
+        TopsTestCase(
+            id="suit_with_2",
+            game_type=GameType.HEARTS,
+            cards=[Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.SPADES)],
+            expected_result=2,
         ),
-        (
-            GameType.HEARTS,
-            [
+        TopsTestCase(
+            id="suit_without_4",
+            game_type=GameType.HEARTS,
+            cards=[Card(Rank.ACE, Suit.HEARTS)],
+            expected_result=4,
+        ),
+        TopsTestCase(
+            id="suit_with_11",
+            game_type=GameType.HEARTS,
+            cards=[
                 Card(Rank.JACK, Suit.CLUBS),
                 Card(Rank.JACK, Suit.SPADES),
                 Card(Rank.JACK, Suit.HEARTS),
@@ -591,50 +619,56 @@ def test_tops():
                 Card(Rank.EIGHT, Suit.HEARTS),
                 Card(Rank.SEVEN, Suit.HEARTS),
             ],
-            11,
+            expected_result=11,
         ),
-        (
-            GameType.HEARTS,
-            [
-                Card(Rank.SEVEN, Suit.HEARTS),
-            ],
-            10,
+        TopsTestCase(
+            id="suit_without_10",
+            game_type=GameType.HEARTS,
+            cards=[Card(Rank.SEVEN, Suit.HEARTS), Card(Rank.ACE, Suit.SPADES)],
+            expected_result=10,
         ),
-        (
-            GameType.HEARTS,
-            [Card(Rank.ACE, Suit.SPADES)],
-            11,
+        TopsTestCase(
+            id="suit_without_11",
+            game_type=GameType.HEARTS,
+            cards=[Card(Rank.ACE, Suit.SPADES)],
+            expected_result=11,
         ),
-        (
-            GameType.GRAND,
-            [
+        TopsTestCase(
+            id="grand_with_1",
+            game_type=GameType.GRAND,
+            cards=[Card(Rank.JACK, Suit.CLUBS)],
+            expected_result=1,
+        ),
+        TopsTestCase(
+            id="grand_without_1",
+            game_type=GameType.GRAND,
+            cards=[Card(Rank.JACK, Suit.HEARTS), Card(Rank.JACK, Suit.SPADES)],
+            expected_result=1,
+        ),
+        TopsTestCase(
+            id="grand_with_4",
+            game_type=GameType.GRAND,
+            cards=[
                 Card(Rank.JACK, Suit.DIAMONDS),
                 Card(Rank.JACK, Suit.SPADES),
                 Card(Rank.JACK, Suit.CLUBS),
                 Card(Rank.JACK, Suit.HEARTS),
                 Card(Rank.ACE, Suit.CLUBS),
             ],
-            4,
+            expected_result=4,
         ),
-        (
-            GameType.GRAND,
-            [
-                Card(Rank.JACK, Suit.DIAMONDS),
-                Card(Rank.JACK, Suit.SPADES),
-                Card(Rank.ACE, Suit.CLUBS),
-            ],
-            1,
+        TopsTestCase(
+            id="grand_without_4",
+            game_type=GameType.GRAND,
+            cards=[Card(Rank.ACE, Suit.SPADES)],
+            expected_result=4,
         ),
-        (
-            GameType.GRAND,
-            [Card(Rank.ACE, Suit.SPADES)],
-            4,
-        ),
-    ]
-    ruleset = ISkO()
-
-    for test in test_cases:
-        assert ruleset.tops(test[1], test[0]) == test[2]
+    ],
+)
+def test_tops(case: TopsTestCase):
+    with case.expectation:
+        result = isko.tops(case.cards, case.game_type)
+        assert case.expected_result == result
 
 
 def test_is_valid_bid():

@@ -6,6 +6,7 @@ from skaty.exceptions import (
     InvalidBidError,
     InvalidDeclarationError,
     InvalidGameTypeError,
+    NoCardsError,
 )
 from skaty.player import Player
 from skaty.rules import (
@@ -150,38 +151,45 @@ class ISkO(AbstractRuleSet):
 
         Raises:
             ValueError: If the cards list is empty.
+            InvalidGameTypeError: If game_type is GameType.NULL or GameType.PASS.
         """
         if game_type in (GameType.PASS, GameType.NULL):
-            return 0
+            raise InvalidGameTypeError("No tops can be calculated in Null or Pass.")
 
         if len(cards) == 0:
-            raise ValueError("The hand cannot be empty.")
+            raise NoCardsError("The hand cannot be empty.")
 
+        # Gather all possible tops in game type.
         allTops = [Card(Rank.JACK, suit) for suit in Suit]
         if (trump := self.trump_suit(game_type)) is not None:
             allTops += [Card(rank, trump) for rank in Rank if rank is not Rank.JACK]
-        allTops = [ComparableCard(card, self, game_type) for card in allTops]
-        sortedAllTops = sorted(allTops, reverse=True)
+
+        allTopsComparable = [ComparableCard(card, self, game_type) for card in allTops]
+
+        # Sort both all possible tops and cards to ensure alignment.
+        sortedAllTops = sorted(allTopsComparable, reverse=True)
         sortedCards = sorted(
             [ComparableCard(card, self, game_type) for card in cards], reverse=True
         )
 
+        # ISkO 2.3.2
         withTops = sortedAllTops[0] == sortedCards[0]
-        counter = 0
+        amount = 0
 
         if withTops:
             for c in zip(sortedAllTops, sortedCards):
                 if c[0] != c[1]:
                     break
-                counter += 1
+                amount += 1
         else:
             try:
                 highest_top = sortedAllTops.index(sortedCards[0])
-                counter = highest_top
+                amount = highest_top
             except ValueError:
+                # No tops is cards. Playing without maximum number of tops.
                 return len(sortedAllTops)
 
-        return counter
+        return amount
 
     def get_card_effective_rank_value(self, card: Card, game_type: GameType) -> int:
         """
@@ -253,7 +261,6 @@ class ISkO(AbstractRuleSet):
         declarer_player = players[declarer]
         declarer_points = points[declarer_player]
 
-        tops = self.tops(declarer_player.hand + list(skat), game_type)
         tricks_scored = sum(1 for _, player in tricks if player == declarer_player)
         # ISkO 2.5.5
         is_schneider = declarer_points >= 90 or declarer_points <= 30
@@ -275,6 +282,7 @@ class ISkO(AbstractRuleSet):
                 base_value *= -2
             return base_value
 
+        tops = self.tops(declarer_player.hand + list(skat), game_type)
         multiplier = 1 + tops
         lost = declarer_points <= 60
         if hand:
