@@ -144,12 +144,6 @@ class ISkO(AbstractRuleSet):
                 return True
         return False
 
-    def has_suit(self, player: Player, suit: Suit):
-        for card in player.hand:
-            if card.suit is suit:
-                return True
-        return False
-
     def tops(self, cards: list[Card], game_type: GameType) -> int:
         """
         Calculates the amount of tops according to ISkO 2.3.
@@ -432,7 +426,7 @@ class ISkO(AbstractRuleSet):
             return self.is_card_trump(card, game_type)
 
         # If player has suit, he must follow
-        if self.has_suit(player, first_card.suit):
+        if player.has_suit(first_card.suit):
             return card.suit is first_card.suit
 
         # Otherwise, any card is valid

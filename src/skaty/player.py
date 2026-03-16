@@ -1,7 +1,6 @@
-from enum import Enum
 from typing import Optional
 
-from skaty.cards import Card
+from skaty.cards import Card, Suit
 from skaty.exceptions import InvalidPlayError
 
 
@@ -63,3 +62,9 @@ class Player:
         """
         self._hand.clear()
         self._played_cards.clear()
+
+    def has_suit(self, suit: Suit) -> bool:
+        for card in self.hand:
+            if card.suit is suit:
+                return True
+        return False
