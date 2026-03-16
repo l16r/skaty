@@ -138,7 +138,7 @@ class ISkO(AbstractRuleSet):
         trump = self.trump_suit(game_type)
         return (card.suit is trump) or (card.rank is Rank.JACK)
 
-    def has_trump(self, player: Player, game_type: GameType):
+    def has_trump(self, player: Player, game_type: GameType) -> bool:
         for card in player.hand:
             if self.is_card_trump(card, game_type):
                 return True
