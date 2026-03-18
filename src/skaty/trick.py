@@ -2,7 +2,10 @@ from functools import reduce
 from typing import Optional
 
 from skaty.cards import Card
-from skaty.exceptions import InvalidGameStateError
+from skaty.exceptions import (
+    TrickFinishedError,
+    TrickNotFinishedError,
+)
 from skaty.rules import AbstractRuleSet, GameType
 
 
@@ -27,12 +30,23 @@ class Trick:
         return self._cards
 
     def add_card(self, card: Card):
+        """
+        Appends a card to the trick.
+
+        Raises:
+            TrickFinishedError: If the trick is already complete.
+        """
+
         if self.is_complete():
-            raise InvalidGameStateError("Trick already complete.")
+            raise TrickFinishedError()
 
         self._cards.append((card))
 
     def pop(self) -> Optional[Card]:
+        """
+        Returns the last card played in the trick.
+        Returns None if trick has no cards.
+        """
         if len(self._cards) == 0:
             return None
         return self._cards.pop()
@@ -42,10 +56,13 @@ class Trick:
 
     def get_winner(self, rule_set: AbstractRuleSet, game_type: GameType) -> int:
         """
-        Get the index of the winner in the trick in the order the trick was played.
+        Determines the winner of the trick in its order (i.e. 0 if the first card wins the trick...).
+
+        Raises:
+            TrickNotFinishedError: If the trick does not contain exactly 3 cards.
         """
         if not self.is_complete():
-            raise InvalidGameStateError("Trick not complete. Cannot calculate winner.")
+            raise TrickNotFinishedError()
         return rule_set.determine_trick_winner(self._cards, game_type)
 
     def get_trick_points(self) -> int:

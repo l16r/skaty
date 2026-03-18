@@ -32,5 +32,13 @@ class NoCardsError(SkatyError):
     """Raised when no cards are passed where there should be some."""
 
 
+class TrickNotFinishedError(InvalidGameStateError):
+    """Raised when a trick with less than 3 cards is probed for a winner."""
+
+
+class TrickFinishedError(InvalidGameStateError):
+    """Raised when a card is added to a trick if it is finished."""
+
+
 class IncompatibleRulesError(SkatyError):
     """Raised when two rule sets collide (e.g. comparing two cards based on different rule sets)."""

@@ -1,10 +1,15 @@
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from typing import Any, ContextManager, Optional
-from _pytest.mark import expression
 import pytest
 from skaty.cards import Card, Rank, Suit
-from skaty.exceptions import InvalidDeclarationError, InvalidGameTypeError, NoCardsError
+from skaty.exceptions import (
+    InvalidBidError,
+    InvalidDeclarationError,
+    InvalidGameTypeError,
+    NoCardsError,
+    TrickNotFinishedError,
+)
 from skaty.game_state import GameState
 from skaty.isko import ISkO
 from skaty.player import Player
@@ -178,6 +183,43 @@ class IsValidCardPlayTestCase:
             play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
             first_card=Card(Rank.KING, Suit.CLUBS),
         ),
+        IsValidCardPlayTestCase(
+            id="grand_follow_trump_1",
+            game_type=GameType.GRAND,
+            hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.JACK, Suit.DIAMONDS)],
+            play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
+            first_card=Card(Rank.JACK, Suit.HEARTS),
+            expected_result=False,
+        ),
+        IsValidCardPlayTestCase(
+            id="grand_follow_trump_2",
+            game_type=GameType.GRAND,
+            hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.JACK, Suit.DIAMONDS)],
+            play_card=Card(Rank.JACK, Suit.DIAMONDS),
+            first_card=Card(Rank.JACK, Suit.HEARTS),
+        ),
+        IsValidCardPlayTestCase(
+            id="grand_cannot_follow_trump",
+            game_type=GameType.GRAND,
+            hand=[Card(Rank.SEVEN, Suit.DIAMONDS)],
+            play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
+            first_card=Card(Rank.JACK, Suit.HEARTS),
+        ),
+        IsValidCardPlayTestCase(
+            id="grand_follow_suit_1",
+            game_type=GameType.GRAND,
+            hand=[Card(Rank.SEVEN, Suit.HEARTS), Card(Rank.JACK, Suit.DIAMONDS)],
+            play_card=Card(Rank.SEVEN, Suit.HEARTS),
+            first_card=Card(Rank.EIGHT, Suit.HEARTS),
+        ),
+        IsValidCardPlayTestCase(
+            id="grand_follow_suit_2",
+            game_type=GameType.GRAND,
+            hand=[Card(Rank.SEVEN, Suit.HEARTS), Card(Rank.JACK, Suit.DIAMONDS)],
+            play_card=Card(Rank.JACK, Suit.DIAMONDS),
+            first_card=Card(Rank.EIGHT, Suit.HEARTS),
+            expected_result=False,
+        ),
     ],
     ids=lambda c: c.id,
 )
@@ -301,22 +343,6 @@ class GameDeclarationTestCase:
             schneider=True,
             schwarz=True,
             open=True,
-            expected_result=False,
-        ),
-        GameDeclarationTestCase(
-            id="suit_no_win_levels_assuming_schwarz_too_high",
-            player=player_with_one,
-            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
-            bid=40,
-            type=GameType.DIAMONDS,
-            expected_result=False,
-        ),
-        GameDeclarationTestCase(
-            id="suit_no_win_levels_assuming_schwarz_too_high",
-            player=player_with_one,
-            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
-            bid=40,
-            type=GameType.DIAMONDS,
             expected_result=False,
         ),
         GameDeclarationTestCase(
@@ -528,6 +554,248 @@ class GameDeclarationTestCase:
             open=True,
             expected_result=False,
         ),
+        GameDeclarationTestCase(
+            id="grand_no_win_levels",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=24,
+            type=GameType.GRAND,
+        ),
+        GameDeclarationTestCase(
+            id="grand_no_win_levels_assuming_schneider",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=48,
+            type=GameType.GRAND,
+        ),
+        GameDeclarationTestCase(
+            id="grand_no_win_levels_assuming_schwarz",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=96,
+            type=GameType.GRAND,
+        ),
+        GameDeclarationTestCase(
+            id="grand_no_win_levels_assuming_schwarz_too_high",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=99,
+            type=GameType.GRAND,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_no_win_levels_schneider_not_possible",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=18,
+            type=GameType.GRAND,
+            schneider=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_no_win_levels_schwarz_not_possible",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=18,
+            type=GameType.GRAND,
+            schwarz=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_no_win_levels_schneider_schwarz_not_possible",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=18,
+            type=GameType.GRAND,
+            schneider=True,
+            schwarz=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_no_win_levels_open_not_possible",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=18,
+            type=GameType.GRAND,
+            open=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_no_win_levels_schwarz_open_not_possible",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=18,
+            type=GameType.GRAND,
+            schwarz=True,
+            open=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_no_win_levels_schneider_schwarz_open_not_possible",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=18,
+            type=GameType.GRAND,
+            schneider=True,
+            schwarz=True,
+            open=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=120,
+            type=GameType.GRAND,
+            hand=True,
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand_too_high",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=121,
+            type=GameType.GRAND,
+            hand=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand_schwarz_not_possible",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=18,
+            type=GameType.GRAND,
+            hand=True,
+            schwarz=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand_schneider",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=144,
+            type=GameType.GRAND,
+            hand=True,
+            schneider=True,
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand_schneider_too_high",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=150,
+            type=GameType.GRAND,
+            hand=True,
+            schneider=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand_schneider_open_not_possible",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=54,
+            type=GameType.GRAND,
+            hand=True,
+            schneider=True,
+            open=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand_schneider_schwarz",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=168,
+            type=GameType.GRAND,
+            hand=True,
+            schneider=True,
+            schwarz=True,
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand_schneider_schwarz_too_high",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=170,
+            type=GameType.GRAND,
+            hand=True,
+            schneider=True,
+            schwarz=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand_schneider_schwarz_open",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=192,
+            type=GameType.GRAND,
+            hand=True,
+            schneider=True,
+            schwarz=True,
+            open=True,
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand_schneider_schwarz_open_too_high",
+            player=player_with_one,
+            skat=(Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=198,
+            type=GameType.GRAND,
+            hand=True,
+            schneider=True,
+            schwarz=True,
+            open=True,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_without_four",
+            player=player_without_four,
+            skat=(Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=168,
+            type=GameType.GRAND,
+        ),
+        GameDeclarationTestCase(
+            id="grand_without_four_too_high",
+            player=player_without_four,
+            skat=(Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=170,
+            type=GameType.GRAND,
+            expected_result=False,
+        ),
+        GameDeclarationTestCase(
+            id="grand_without_four_hand_schneider_schwarz_open",
+            player=player_without_four,
+            skat=(Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=264,
+            hand=True,
+            schneider=True,
+            schwarz=True,
+            open=True,
+            type=GameType.GRAND,
+        ),
+        GameDeclarationTestCase(
+            id="grand_without_four_hand_schneider_schwarz_open_is_max",
+            player=player_without_four,
+            skat=(Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.NINE, Suit.CLUBS)),
+            bid=265,
+            hand=True,
+            schneider=True,
+            schwarz=True,
+            open=True,
+            type=GameType.GRAND,
+            expectation=pytest.raises(InvalidDeclarationError),
+        ),
+        GameDeclarationTestCase(
+            id="grand_hand_without_four_ignores_skat",
+            player=player_without_four,
+            skat=(Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.DIAMONDS)),
+            bid=168,
+            hand=True,
+            type=GameType.GRAND,
+        ),
+        GameDeclarationTestCase(
+            id="suit_without_four_includes_skat",
+            player=player_without_four,
+            skat=(Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.DIAMONDS)),
+            bid=99,
+            type=GameType.GRAND,
+            expected_result=False,
+        ),
     ],
     ids=lambda c: c.id,
 )
@@ -668,6 +936,188 @@ class TopsTestCase:
 def test_tops(case: TopsTestCase):
     with case.expectation:
         result = isko.tops(case.cards, case.game_type)
+        assert case.expected_result == result
+
+
+@dataclass
+class TrickWinnerTestCase:
+    id: str
+    trick: list[Card]
+    game_type: GameType
+    expected_result: int
+    expectation: ContextManager[Any] = field(default_factory=nullcontext)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        TrickWinnerTestCase(
+            id="no_tricks",
+            trick=[],
+            game_type=GameType.DIAMONDS,
+            expected_result=0,
+            expectation=pytest.raises(TrickNotFinishedError),
+        ),
+        TrickWinnerTestCase(
+            id="trick_not_finished",
+            trick=[Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.JACK, Suit.HEARTS)],
+            game_type=GameType.DIAMONDS,
+            expected_result=0,
+            expectation=pytest.raises(TrickNotFinishedError),
+        ),
+        TrickWinnerTestCase(
+            id="pass",
+            trick=[],
+            game_type=GameType.PASS,
+            expected_result=0,
+            expectation=pytest.raises(InvalidGameTypeError),
+        ),
+        TrickWinnerTestCase(
+            id="suit_same_rank",
+            trick=[
+                Card(Rank.ACE, Suit.CLUBS),
+                Card(Rank.ACE, Suit.DIAMONDS),
+                Card(Rank.ACE, Suit.SPADES),
+            ],
+            game_type=GameType.HEARTS,
+            expected_result=0,
+        ),
+        TrickWinnerTestCase(
+            id="suit_same_rank_second_trump",
+            trick=[
+                Card(Rank.ACE, Suit.CLUBS),
+                Card(Rank.ACE, Suit.DIAMONDS),
+                Card(Rank.ACE, Suit.SPADES),
+            ],
+            game_type=GameType.SPADES,
+            expected_result=2,
+        ),
+        TrickWinnerTestCase(
+            id="suit_lower_rank",
+            trick=[
+                Card(Rank.KING, Suit.DIAMONDS),
+                Card(Rank.ACE, Suit.DIAMONDS),
+                Card(Rank.TEN, Suit.DIAMONDS),
+            ],
+            game_type=GameType.DIAMONDS,
+            expected_result=1,
+        ),
+        TrickWinnerTestCase(
+            id="suit_jack",
+            trick=[
+                Card(Rank.KING, Suit.DIAMONDS),
+                Card(Rank.ACE, Suit.DIAMONDS),
+                Card(Rank.JACK, Suit.DIAMONDS),
+            ],
+            game_type=GameType.DIAMONDS,
+            expected_result=2,
+        ),
+        TrickWinnerTestCase(
+            id="suit_jack_order",
+            trick=[
+                Card(Rank.JACK, Suit.DIAMONDS),
+                Card(Rank.JACK, Suit.HEARTS),
+                Card(Rank.JACK, Suit.CLUBS),
+            ],
+            game_type=GameType.DIAMONDS,
+            expected_result=2,
+        ),
+        TrickWinnerTestCase(
+            id="suit_7_8_9",
+            trick=[
+                Card(Rank.SEVEN, Suit.DIAMONDS),
+                Card(Rank.EIGHT, Suit.DIAMONDS),
+                Card(Rank.NINE, Suit.DIAMONDS),
+            ],
+            game_type=GameType.DIAMONDS,
+            expected_result=2,
+        ),
+        TrickWinnerTestCase(
+            id="suit_taking_with_trump",
+            trick=[
+                Card(Rank.KING, Suit.DIAMONDS),
+                Card(Rank.SEVEN, Suit.HEARTS),
+                Card(Rank.TEN, Suit.DIAMONDS),
+            ],
+            game_type=GameType.HEARTS,
+            expected_result=1,
+        ),
+        TrickWinnerTestCase(
+            id="null_jack_order",
+            trick=[
+                Card(Rank.JACK, Suit.CLUBS),
+                Card(Rank.QUEEN, Suit.CLUBS),
+                Card(Rank.JACK, Suit.DIAMONDS),
+            ],
+            game_type=GameType.NULL,
+            expected_result=1,
+        ),
+        TrickWinnerTestCase(
+            id="null_ten_order_lower",
+            trick=[
+                Card(Rank.NINE, Suit.DIAMONDS),
+                Card(Rank.EIGHT, Suit.DIAMONDS),
+                Card(Rank.TEN, Suit.DIAMONDS),
+            ],
+            game_type=GameType.NULL,
+            expected_result=2,
+        ),
+        TrickWinnerTestCase(
+            id="null_ten_order_upper",
+            trick=[
+                Card(Rank.NINE, Suit.DIAMONDS),
+                Card(Rank.TEN, Suit.DIAMONDS),
+                Card(Rank.QUEEN, Suit.DIAMONDS),
+            ],
+            game_type=GameType.NULL,
+            expected_result=2,
+        ),
+        TrickWinnerTestCase(
+            id="null_has_no_trump",
+            trick=[
+                Card(Rank.NINE, Suit.DIAMONDS),
+                Card(Rank.TEN, Suit.DIAMONDS),
+                Card(Rank.JACK, Suit.CLUBS),
+            ],
+            game_type=GameType.NULL,
+            expected_result=1,
+        ),
+        TrickWinnerTestCase(
+            id="grand_has_no_trump_suit",
+            trick=[
+                Card(Rank.KING, Suit.DIAMONDS),
+                Card(Rank.TEN, Suit.DIAMONDS),
+                Card(Rank.ACE, Suit.CLUBS),
+            ],
+            game_type=GameType.GRAND,
+            expected_result=1,
+        ),
+        TrickWinnerTestCase(
+            id="grand_jack_order_1",
+            trick=[
+                Card(Rank.JACK, Suit.DIAMONDS),
+                Card(Rank.JACK, Suit.HEARTS),
+                Card(Rank.JACK, Suit.SPADES),
+            ],
+            game_type=GameType.GRAND,
+            expected_result=2,
+        ),
+        TrickWinnerTestCase(
+            id="grand_jack_order_2",
+            trick=[
+                Card(Rank.JACK, Suit.SPADES),
+                Card(Rank.JACK, Suit.HEARTS),
+                Card(Rank.JACK, Suit.CLUBS),
+            ],
+            game_type=GameType.GRAND,
+            expected_result=2,
+        ),
+    ],
+    ids=lambda c: c.id,
+)
+def test_determine_trick_winner(case: TrickWinnerTestCase):
+    with case.expectation:
+        result = isko.determine_trick_winner(case.trick, case.game_type)
         assert case.expected_result == result
 
 

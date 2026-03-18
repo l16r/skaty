@@ -7,6 +7,7 @@ from skaty.exceptions import (
     InvalidDeclarationError,
     InvalidGameTypeError,
     NoCardsError,
+    TrickNotFinishedError,
 )
 from skaty.player import Player
 from skaty.rules import (
@@ -221,15 +222,29 @@ class ISkO(AbstractRuleSet):
         return trump_rank_map.get(card.rank, 0)
 
     def determine_trick_winner(self, trick: list[Card], game_type: GameType) -> int:
-        assert len(trick) == 3
+        """
+        Determines the winner of the trick in its order (i.e. 0 if the first card wins the trick...).
 
+        Raises:
+            TrickNotFinishedError: If trick does not contain exactly 3 cards.
+            InvalidGameTypeError: If game_type is GameType.PASS.
+        """
+        if game_type is GameType.PASS:
+            raise InvalidGameTypeError()
+        if len(trick) != 3:
+            raise TrickNotFinishedError()
+
+        # Assume first player wins.
         winner = 0
 
         for i, c in enumerate(trick[1:]):
+            # Followed suit and played a stronger card.
             if c.suit is trick[winner].suit and self.get_card_effective_rank_value(
                 trick[winner], game_type
             ) < self.get_card_effective_rank_value(c, game_type):
+                # Due to slicing, i starts at 0
                 winner = i + 1
+            # Played a stronger trump card.
             elif self.is_card_trump(
                 c, game_type
             ) and self.get_card_effective_rank_value(
