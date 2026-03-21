@@ -12,6 +12,10 @@ class InvalidGameTypeError(SkatyError):
     """Raised when an invalid game type is passed as an argument (e.g. passing GameType.PASS for is_valid_game_declaration)."""
 
 
+class NoHigherBidPossible(SkatyError):
+    """Raised when no higher bid is possible according to the rules."""
+
+
 class InvalidBidError(SkatyError):
     """Raised when an illegal bid is made."""
 

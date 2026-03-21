@@ -2,7 +2,12 @@ from typing import Any, Generator, Optional
 
 import itertools
 from skaty.cards import Card, create_deck, shuffle_deck
-from skaty.exceptions import InvalidActionError, InvalidGameStateError, InvalidPlayError
+from skaty.exceptions import (
+    InvalidActionError,
+    InvalidGameStateError,
+    InvalidPlayError,
+    NoHigherBidPossible,
+)
 from skaty.player import Player
 from skaty.rules import (
     AbstractRuleSet,
@@ -65,6 +70,7 @@ class GameState:
     _declaration: tuple[bool, bool, bool, bool]
     _log: bool
 
+    # TODO: allow setting card distribution for analysis purposes
     def __init__(
         self,
         players: list[Player],
@@ -252,7 +258,7 @@ class GameState:
                     self._players[self._declarer].play_card(c)
             case DeclareBid(bid=value):
                 self._bid = value
-            case DeclareGame(game_type, schneider, schwarz, open):
+            case DeclareGame(game_type, _, schneider, schwarz, open):
                 if self._skat is None:
                     raise InvalidGameStateError("Skat must be buried before declaring.")
                 assert self._bid is not None
@@ -335,7 +341,11 @@ class GameState:
                         yield PlayCard(card)
 
             elif action_type is DeclareBid:
-                next_bid = self._rule_set.get_next_valid_bid(self._bid)
+                try:
+                    next_bid = self._rule_set.get_next_valid_bid(self._bid)
+                except NoHigherBidPossible:
+                    continue
+
                 if self._rule_set.is_valid_bid(
                     player,
                     DeclareBid(next_bid),
@@ -391,7 +401,7 @@ class GameState:
                         False,
                         False,
                     ):
-                        yield DeclareGame(gt, self._hand_available)
+                        yield DeclareGame(gt, hand=self._hand_available)
 
     def _advance_turn(self, action: Action):
         if isinstance(action, GiveUp):

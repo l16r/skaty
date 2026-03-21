@@ -256,6 +256,7 @@ class ISkO(AbstractRuleSet):
 
         return winner
 
+    # TODO: overbid games according to ISkO 3.6.1
     def calculate_game_score(
         self,
         players: list[Player],

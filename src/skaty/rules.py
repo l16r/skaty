@@ -133,7 +133,7 @@ class DeclareGame(Action):
     """Declare specific game"""
 
     game_type: GameType
-    # Hand is always implied by drawing or not drawing the Skat.
+    hand: bool = False
     schneider: bool = False
     schwarz: bool = False
     open: bool = False
