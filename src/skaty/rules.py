@@ -67,7 +67,7 @@ class ActionType(Enum):
     BURY_SKAT = "BURY_SKAT"
     DECLARE_BID = "DECLARE_BID"
     LISTEN = "LISTEN"
-    PASS = "PASTEN"
+    PASS = "PASS"
     DECLARE_GAME = "DECLARE_GAME"
     GIVE_UP = "GIVE_UP"
 
