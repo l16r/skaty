@@ -369,7 +369,7 @@ class ISkO(AbstractRuleSet):
         bidding_phase: BiddingPhase,
     ) -> bool:
         """
-        Determines if bid is valid for player in player_pos in the context of previous_bids and bidding_phase.
+        Determines if bid is valid for player in player_pos in the context of previous_bids and bidding_phase. Passing is allowed for every player in every bidding phase if they have not passed before or bid/listened before and are the only one left.
         """
         # Check if player has passed before.
         for b in previous_bids:
@@ -387,7 +387,7 @@ class ISkO(AbstractRuleSet):
             return False
 
         if isinstance(bid, DeclareBid):
-            # Backhand is the only one that can bid in these phases
+            # Backhand is the only one that can bid in these phases. However, if 2 players passed, anyone can bid.
             if (
                 bidding_phase
                 in (BiddingPhase.ForehandBackhand, BiddingPhase.MiddlehandBackhand)
@@ -399,7 +399,6 @@ class ISkO(AbstractRuleSet):
             if (
                 bidding_phase is BiddingPhase.ForehandMiddlehand
                 and player_pos != PlayerPosition.MIDDLEHAND
-                and passes < 2
             ):
                 return False
 

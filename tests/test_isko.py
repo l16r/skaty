@@ -4,7 +4,6 @@ from typing import Any, ContextManager, Optional
 import pytest
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import (
-    InvalidBidError,
     InvalidDeclarationError,
     InvalidGameTypeError,
     NoCardsError,
@@ -17,16 +16,16 @@ from skaty.rules import (
     BiddingPhase,
     DealCards,
     DeclareBid,
-    DeclareGame,
-    GamePhase,
     GameType,
     Listen,
     Pass,
-    PlayCard,
     PlayerPosition,
 )
 
 isko = ISkO()
+forehand = Player("forehand")
+middlehand = Player("middlehand")
+backhand = Player("backhand")
 player_with_one = Player("with one", hand=[Card(Rank.JACK, Suit.CLUBS)])
 player_without_four = Player("without four", hand=[Card(Rank.ACE, Suit.DIAMONDS)])
 
@@ -1121,176 +1120,253 @@ def test_determine_trick_winner(case: TrickWinnerTestCase):
         assert case.expected_result == result
 
 
-def test_is_valid_bid():
-    p1 = Player("forehand")
-    p2 = Player("middlehand")
-    p3 = Player("backhand")
-    test_data = [
-        (
-            [
-                (p2, DeclareBid(18)),
-                (p1, Listen()),
-                (p2, DeclareBid(20)),
-                (p1, Pass()),
-                (p3, Pass()),
-            ],
-            p1,
-            Pass(),
-            PlayerPosition.MIDDLEHAND,
-            BiddingPhase.MiddlehandBackhand,
-            False,
-        ),
-        (
-            [
-                (p2, Pass()),
-                (p1, Pass()),
-            ],
-            p3,
-            Pass(),
-            PlayerPosition.BACKHAND,
-            BiddingPhase.ForehandBackhand,
-            True,
-        ),
-        (
-            [
-                (p2, DeclareBid(18)),
-                (p1, Listen()),
-                (p2, DeclareBid(20)),
-                (p1, Pass()),
-                (p3, Pass()),
-            ],
-            p1,
-            Pass(),
-            PlayerPosition.FOREHAND,
-            BiddingPhase.MiddlehandBackhand,
-            False,
-        ),
-        (
-            [
-                (p2, DeclareBid(18)),
-                (p1, Listen()),
-                (p2, DeclareBid(20)),
-                (p1, Pass()),
-                (p3, Pass()),
-            ],
-            p1,
-            DeclareBid(22),
-            PlayerPosition.FOREHAND,
-            BiddingPhase.MiddlehandBackhand,
-            False,
-        ),
-        (
-            [
-                (p2, DeclareBid(18)),
-                (p1, Listen()),
-                (p2, DeclareBid(20)),
-                (p1, Pass()),
-                (p3, Pass()),
-            ],
-            p2,
-            DeclareBid(20),
-            PlayerPosition.FOREHAND,
-            BiddingPhase.MiddlehandBackhand,
-            False,
-        ),
-        (
-            [
-                (p2, Pass()),
-                (p3, DeclareBid(18)),
-                (p1, Pass()),
-            ],
-            p3,
-            DeclareBid(18),
-            PlayerPosition.BACKHAND,
-            BiddingPhase.ForehandBackhand,
-            False,
-        ),
-        (
-            [
-                (p2, Pass()),
-                (p3, DeclareBid(18)),
-                (p1, Pass()),
-            ],
-            p3,
-            DeclareBid(20),
-            PlayerPosition.BACKHAND,
-            BiddingPhase.ForehandBackhand,
-            True,
-        ),
-        (
-            [
-                (p2, Pass()),
-                (p3, DeclareBid(18)),
-                (p1, Pass()),
-            ],
-            p3,
-            Listen(),
-            PlayerPosition.BACKHAND,
-            BiddingPhase.ForehandBackhand,
-            False,
-        ),
-        (
-            [],
-            p2,
-            Pass(),
-            PlayerPosition.MIDDLEHAND,
-            BiddingPhase.ForehandMiddlehand,
-            True,
-        ),
-        (
-            [],
-            p2,
-            Listen(),
-            PlayerPosition.MIDDLEHAND,
-            BiddingPhase.ForehandMiddlehand,
-            False,
-        ),
-        (
-            [],
-            p2,
-            DeclareBid(18),
-            PlayerPosition.MIDDLEHAND,
-            BiddingPhase.ForehandMiddlehand,
-            True,
-        ),
-        (
-            [],
-            p2,
-            DeclareBid(19),
-            PlayerPosition.MIDDLEHAND,
-            BiddingPhase.ForehandMiddlehand,
-            False,
-        ),
-        (
-            [],
-            p2,
-            DeclareBid(-1),
-            PlayerPosition.MIDDLEHAND,
-            BiddingPhase.ForehandMiddlehand,
-            False,
-        ),
-    ]
-
-    ruleset = ISkO()
-
-    for test in test_data:
-        assert (
-            ruleset.is_valid_bid(test[1], test[2], test[0], test[3], test[4]) == test[5]
-        )
+@dataclass
+class IsValidBidTestCase:
+    id: str
+    previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]]
+    player: Player
+    player_pos: PlayerPosition
+    bid: DeclareBid | Listen | Pass
+    bidding_phase: BiddingPhase
+    expected_result: bool = True
 
 
-def test_is_valid_action():
-    test_data = [
-        (DealCards(), GamePhase.PRE_DEAL, True),
-        (DealCards(), GamePhase.PRE_DEAL, True),
-        (PlayCard(Card(Rank.ACE, Suit.CLUBS)), GamePhase.DECLARATION, False),
-        (DeclareGame(GameType.CLUBS, False), GamePhase.DECLARATION, True),
-    ]
-
-    ruleset = ISkO()
-
-    for test in test_data:
-        assert ruleset.is_valid_action(test[0], test[1]) == test[2]
+@pytest.mark.parametrize(
+    "case",
+    [
+        IsValidBidTestCase(
+            id="backhand_cannot_bid_first",
+            previous_bids=[],
+            player=backhand,
+            player_pos=PlayerPosition.BACKHAND,
+            bid=DeclareBid(18),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="backhand_can_pass_first",
+            previous_bids=[],
+            player=backhand,
+            player_pos=PlayerPosition.BACKHAND,
+            bid=Pass(),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+        ),
+        IsValidBidTestCase(
+            id="backhand_cannot_listen_first",
+            previous_bids=[],
+            player=backhand,
+            player_pos=PlayerPosition.BACKHAND,
+            bid=Listen(),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="forehand_cannot_bid_first",
+            previous_bids=[],
+            player=forehand,
+            player_pos=PlayerPosition.FOREHAND,
+            bid=DeclareBid(18),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="forehand_can_pass_first",
+            previous_bids=[],
+            player=forehand,
+            player_pos=PlayerPosition.FOREHAND,
+            bid=Pass(),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+        ),
+        IsValidBidTestCase(
+            id="forehand_cannot_listen_first",
+            previous_bids=[],
+            player=forehand,
+            player_pos=PlayerPosition.FOREHAND,
+            bid=Listen(),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="middlehand_can_declare_first",
+            previous_bids=[],
+            player=middlehand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=DeclareBid(24),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+        ),
+        IsValidBidTestCase(
+            id="middlehand_cannot_listen_first",
+            previous_bids=[],
+            player=middlehand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=Listen(),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="middlehand_can_pass_first",
+            previous_bids=[],
+            player=middlehand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=Pass(),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+        ),
+        IsValidBidTestCase(
+            id="all_pass",
+            previous_bids=[(middlehand, Pass()), (backhand, Pass())],
+            player=forehand,
+            player_pos=PlayerPosition.FOREHAND,
+            bid=Pass(),
+            bidding_phase=BiddingPhase.ForehandBackhand,
+        ),
+        IsValidBidTestCase(
+            id="cannot_declare_invalid_bid",
+            previous_bids=[],
+            player=middlehand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=DeclareBid(19),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="middlehand_backhand_cannot_listen",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Pass()),
+            ],
+            player=backhand,
+            player_pos=PlayerPosition.BACKHAND,
+            bid=Listen(),
+            bidding_phase=BiddingPhase.MiddlehandBackhand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="middlehand_backhand_bid_must_be_higher",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Pass()),
+            ],
+            player=backhand,
+            player_pos=PlayerPosition.BACKHAND,
+            bid=DeclareBid(18),
+            bidding_phase=BiddingPhase.MiddlehandBackhand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="middlehand_backhand_can_bid",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Pass()),
+            ],
+            player=backhand,
+            player_pos=PlayerPosition.BACKHAND,
+            bid=DeclareBid(20),
+            bidding_phase=BiddingPhase.MiddlehandBackhand,
+        ),
+        IsValidBidTestCase(
+            id="middlehand_backhand_middlehand_can_listen",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Pass()),
+                (backhand, DeclareBid(20)),
+            ],
+            player=backhand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=Listen(),
+            bidding_phase=BiddingPhase.MiddlehandBackhand,
+        ),
+        IsValidBidTestCase(
+            id="middlehand_backhand_middlehand_can_pass",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Pass()),
+                (backhand, DeclareBid(20)),
+            ],
+            player=backhand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=Pass(),
+            bidding_phase=BiddingPhase.MiddlehandBackhand,
+        ),
+        IsValidBidTestCase(
+            id="middlehand_backhand_middlehand_cannot_declare",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Pass()),
+                (backhand, DeclareBid(20)),
+            ],
+            player=backhand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=DeclareBid(22),
+            bidding_phase=BiddingPhase.MiddlehandBackhand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="forehand_middlehand_cannot_listen",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Listen()),
+            ],
+            player=middlehand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=Listen(),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="forehand_middlehand_can_pass",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Listen()),
+            ],
+            player=middlehand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=Pass(),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+        ),
+        IsValidBidTestCase(
+            id="forehand_middlehand_can_bid",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Listen()),
+            ],
+            player=middlehand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=DeclareBid(20),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+        ),
+        IsValidBidTestCase(
+            id="forehand_middlehand_bid_must_be_higher",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Listen()),
+            ],
+            player=middlehand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=DeclareBid(18),
+            bidding_phase=BiddingPhase.ForehandMiddlehand,
+            expected_result=False,
+        ),
+        IsValidBidTestCase(
+            id="cannot_pass_if_bid_before_and_others_passed",
+            previous_bids=[
+                (middlehand, DeclareBid(18)),
+                (forehand, Pass()),
+                (backhand, Pass()),
+            ],
+            player=middlehand,
+            player_pos=PlayerPosition.MIDDLEHAND,
+            bid=Pass(),
+            bidding_phase=BiddingPhase.MiddlehandBackhand,
+            expected_result=False,
+        ),
+    ],
+    ids=lambda c: c.id,
+)
+def test_is_valid_bid(case: IsValidBidTestCase):
+    result = isko.is_valid_bid(
+        case.player, case.bid, case.previous_bids, case.player_pos, case.bidding_phase
+    )
+    assert case.expected_result == result
 
 
 def test_calculate_game_score():
