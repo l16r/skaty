@@ -7,6 +7,7 @@ from skaty.exceptions import (
     InvalidDeclarationError,
     InvalidGameTypeError,
     NoCardsError,
+    NoHigherBidPossible,
     TrickNotFinishedError,
 )
 from skaty.player import Player
@@ -347,10 +348,10 @@ class ISkO(AbstractRuleSet):
 
     def get_next_valid_bid(self, current_bid: Optional[int]) -> int:
         """
-        Calculates the next valid bid.
+        Calculates the next highest valid bid.
 
         Raises:
-            InvalidBidError: If no higher bid is possible.
+            NoHigherBidPossible: If no higher bid is possible.
         """
         if current_bid is None:
             return 18
@@ -358,7 +359,7 @@ class ISkO(AbstractRuleSet):
         for b in sorted_bids:
             if b > current_bid:
                 return b
-        raise InvalidBidError(f"No bid after {current_bid} possible.")
+        raise NoHigherBidPossible()
 
     def is_valid_bid(
         self,

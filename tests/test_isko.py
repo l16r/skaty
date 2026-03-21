@@ -7,6 +7,7 @@ from skaty.exceptions import (
     InvalidDeclarationError,
     InvalidGameTypeError,
     NoCardsError,
+    NoHigherBidPossible,
     TrickNotFinishedError,
 )
 from skaty.game_state import GameState
@@ -1367,6 +1368,33 @@ def test_is_valid_bid(case: IsValidBidTestCase):
         case.player, case.bid, case.previous_bids, case.player_pos, case.bidding_phase
     )
     assert case.expected_result == result
+
+
+@dataclass
+class GetNextValidBidTestCase:
+    id: str
+    current_bid: Optional[int]
+    expected_result: int
+    expectation: ContextManager[Any] = field(default_factory=nullcontext)
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        GetNextValidBidTestCase(id="start_at_18", current_bid=None, expected_result=18),
+        GetNextValidBidTestCase(id="after_18", current_bid=18, expected_result=20),
+        GetNextValidBidTestCase(
+            id="highest_bid",
+            current_bid=264,
+            expected_result=0,
+            expectation=pytest.raises(NoHigherBidPossible),
+        ),
+    ],
+    ids=lambda c: c.id,
+)
+def test_get_next_valid_bid(case: GetNextValidBidTestCase):
+    with case.expectation:
+        assert case.expected_result == isko.get_next_valid_bid(case.current_bid)
 
 
 def test_calculate_game_score():
