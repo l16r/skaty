@@ -37,10 +37,14 @@ class Action:
     player_idx: PlayerIdx
     _memory: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
 
-    @abstractmethod
     def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
         # Actions are only legal for the currently active player
-        return self.player_idx == state.active_player
+        if self.player_idx != state.active_player:
+            return False
+        # Actions are only allowed in some phases
+        if not ruleset.is_valid_action_during_phase(self, state.phase):
+            return False
+        return True
 
     @abstractmethod
     def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
@@ -62,9 +66,29 @@ class PlayCard(Action):
 
 @dataclass
 class DrawSkat(Action):
-    """Draw Skat, removing hand, Schneider and Schneider Schwarz (announced) and open as winning options (ISkO 2.5.1)."""
+    """Draw Skat into players hand, removing hand multiplier."""
 
-    pass
+    def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
+        if not super().is_valid(state, ruleset):
+            return False
+
+        return len(state.skat) == 2
+
+    def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
+        self._memory = {
+            "skat": state.skat.copy(),
+            "hand": state.hands[state.active_player].copy(),
+            "hand_available": state.hand_available,
+        }
+
+        state.hands[state.active_player] += state.skat
+        state.skat = []
+        state.hand_available = False
+
+    def undo(self, state: GameState) -> None:
+        state.skat = self._memory["skat"]
+        state.hands[state.active_player] = self._memory["hand"]
+        state.hand_available = self._memory["hand_available"]
 
 
 @dataclass
@@ -72,6 +96,32 @@ class BurySkat(Action):
     """Bury cards from hand into the Skat."""
 
     cards: tuple[Card, Card]
+
+    def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
+        if not super().is_valid(state, ruleset):
+            return False
+
+        if len(state.skat) != 0:
+            return False
+
+        hand = state.hands[state.active_player]
+        # Cannot bury card not in hand
+        if self.cards[0] not in hand or self.cards[1] not in hand:
+            return False
+        # Cannot bury same card twice
+        if self.cards[0] == self.cards[1]:
+            return False
+
+        return True
+
+    def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
+        state.skat = list(self.cards)
+        state.hands[state.active_player].remove(self.cards[0])
+        state.hands[state.active_player].remove(self.cards[1])
+
+    def undo(self, state: GameState) -> None:
+        state.skat = []
+        state.hands[state.active_player] += list(self.cards)
 
 
 @dataclass
@@ -83,8 +133,7 @@ class DeclareBid(Action):
     def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
         if not super().is_valid(state, ruleset):
             return False
-        elif not ruleset.is_valid_action_during_phase(self, state.phase):
-            return False
+
         return ruleset.is_valid_bid(state, self)
 
     def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
@@ -113,8 +162,7 @@ class Listen(Action):
     def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
         if not super().is_valid(state, ruleset):
             return False
-        if not ruleset.is_valid_action_during_phase(self, state.phase):
-            return False
+
         return ruleset.is_valid_bid(state, self)
 
     def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
@@ -140,8 +188,7 @@ class Pass(Action):
     def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
         if not super().is_valid(state, ruleset):
             return False
-        if not ruleset.is_valid_action_during_phase(self, state.phase):
-            return False
+
         return ruleset.is_valid_bid(state, self)
 
     def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
