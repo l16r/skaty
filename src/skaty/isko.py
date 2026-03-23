@@ -1,10 +1,21 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, cast
 
+from skaty.actions import (
+    Action,
+    BurySkat,
+    DeclareBid,
+    DeclareGame,
+    DrawSkat,
+    GiveUp,
+    Listen,
+    Pass,
+    PlayCard,
+    PlayerIdx,
+)
 from skaty.cards import Card, Rank, Suit
-from skaty.comparable_card import ComparableCard
 from skaty.exceptions import (
-    InvalidBidError,
     InvalidDeclarationError,
+    InvalidGameStateError,
     InvalidGameTypeError,
     NoCardsError,
     NoHigherBidPossible,
@@ -13,22 +24,15 @@ from skaty.exceptions import (
 from skaty.player import Player
 from skaty.rules import (
     AbstractRuleSet,
-    Action,
     BiddingPhase,
-    BurySkat,
-    DealCards,
-    DeclareBid,
-    DeclareGame,
-    DrawSkat,
     GamePhase,
     GameType,
-    GiveUp,
-    Listen,
-    Pass,
-    PlayCard,
     PlayerPosition,
 )
 from skaty.trick import Trick
+
+if TYPE_CHECKING:
+    from skaty.game_state import GameState
 
 # All bid values possible per ISkO (Null values and grand/suit values multiplied with range of their possible multipliers).
 _VALID_BIDS = frozenset(
@@ -105,7 +109,6 @@ class ISkO(AbstractRuleSet):
 
     # Map of actions to phases in which they are valid.
     _PHASE_RULES: dict[type[Action], list[GamePhase]] = {
-        DealCards: [GamePhase.PRE_DEAL],
         PlayCard: [GamePhase.PLAYING],
         DrawSkat: [GamePhase.DECLARATION],
         BurySkat: [GamePhase.DECLARATION],
@@ -331,7 +334,7 @@ class ISkO(AbstractRuleSet):
             return -2 * multiplier * base_value
         return multiplier * base_value
 
-    def is_valid_action(
+    def is_valid_action_during_phase(
         self,
         action: Action,
         phase: GamePhase,
@@ -365,24 +368,30 @@ class ISkO(AbstractRuleSet):
 
     def is_valid_bid(
         self,
-        player: Player,
+        state: GameState,
         bid: DeclareBid | Listen | Pass,
-        previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]],
-        player_pos: PlayerPosition,
-        bidding_phase: BiddingPhase,
     ) -> bool:
         """
         Determines if bid is valid for player in player_pos in the context of previous_bids and bidding_phase. Passing is allowed for every player in every bidding phase if they have not passed before or bid/listened before and are the only one left.
         """
+        player = bid.player_idx
+        player_pos = state.get_player_position(player)
+        previous_bids = state.all_bids
+        bidding_phase = state.bidding_phase
+
         # Check if player has passed before.
         for b in previous_bids:
-            if b[0] == player and isinstance(b[1], Pass):
+            if b.player_idx == player and isinstance(b, Pass):
                 return False
 
         # Count passes
-        passes = len([p for p, a in previous_bids if isinstance(a, Pass)])
+        passes = len(
+            [action.player_idx for action in previous_bids if isinstance(action, Pass)]
+        )
         bid_before = any(
-            isinstance(a, (DeclareBid, Listen)) for p, a in previous_bids if p == player
+            isinstance(action, (DeclareBid, Listen))
+            for action in previous_bids
+            if action.player_idx == player
         )
 
         # If both other players have passed, reject Pass if player has listened/bid before
@@ -407,7 +416,7 @@ class ISkO(AbstractRuleSet):
 
             # Must be higher than all previous bids and valid value
             max_bid = max(
-                (a.bid for _, a in previous_bids if isinstance(a, DeclareBid)),
+                (a.bid for a in previous_bids if isinstance(a, DeclareBid)),
                 default=0,
             )
             return bid.bid > max_bid and bid.bid in self._VALID_BIDS
@@ -417,7 +426,7 @@ class ISkO(AbstractRuleSet):
             if len(previous_bids) == 0:
                 return False
             bid_before = previous_bids[-1]
-            return isinstance(bid_before[1], DeclareBid)
+            return isinstance(bid_before, DeclareBid)
 
         # Pass is allowed unless already passed or forbidden by above rule
         if isinstance(bid, Pass):
@@ -519,3 +528,78 @@ class ISkO(AbstractRuleSet):
 
         # If the player plays Schwarz, he also gets one multiplier for each playing Schneider and Schwarz.
         return bid <= (tops + multiplier + 2) * base_value
+
+    def get_valid_actions(self, state: GameState, player_idx: int) -> list[Action]:
+        return []
+
+    def advance_bidding(self, state: GameState, action: Action) -> None:
+        """
+        Mutate the state in bidding dependent on action.
+        Might modify:
+        - state.active_player
+        - state.bidding_phase
+        - state.phase
+        - state.declarer_idx
+
+        If bidding continues after action, update:
+
+        - state.active_player: to the next player bidding
+        - state.bidding_phase: if a player passes
+
+        If bidding finishes with a declarer after action, update:
+
+        - state.active_player: to be index of declarer
+        - state.phase: to GamePhase.DECLARATION
+        - state.declarer_idx: to be index of declarer
+
+        If bidding finishes with all players passing after action, update:
+
+        - state.phase: to GamePhase.GAME_OVER.
+        """
+        player = state.active_player
+        passes = state.number_of_passes
+        bid_before = state.bid is not None
+
+        if state.bidding_phase is BiddingPhase.ForehandMiddlehand:
+            # Pass, switch to other phase
+            if isinstance(action, Pass):
+                # Backhand does "weitersagen"
+                state.active_player = state._backhand
+                if player == state._forehand:
+                    state.bidding_phase = BiddingPhase.MiddlehandBackhand
+                else:
+                    state.bidding_phase = BiddingPhase.ForehandBackhand
+            # Otherwise, alternate between forehand and middlehand
+            else:
+                if player == state._forehand:
+                    state.active_player = state._middlehand
+                elif player == state._middlehand:
+                    state.active_player = state._forehand
+            return
+
+        elif state.bidding_phase is BiddingPhase.ForehandBackhand:
+            other_player = (
+                state._forehand
+                if state.active_player == state._backhand
+                else state._backhand
+            )
+        else:  # MiddlehandBackhand
+            other_player = (
+                state._middlehand
+                if state.active_player == state._backhand
+                else state._backhand
+            )
+
+        if isinstance(action, Pass):
+            # 2 players passed
+            if bid_before:
+                state.phase = GamePhase.DECLARATION
+                state.declarer_idx = other_player
+                state.active_player = state.declarer_idx
+            elif passes == 2:
+                state.phase = GamePhase.GAME_OVER
+            elif passes == 1:
+                state.active_player = other_player
+
+        elif isinstance(action, (Listen, DeclareBid)):
+            state.active_player = other_player

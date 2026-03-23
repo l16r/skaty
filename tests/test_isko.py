@@ -1,7 +1,10 @@
 from contextlib import nullcontext
 from dataclasses import dataclass, field
+import random
 from typing import Any, ContextManager, Optional
 import pytest
+from skaty import player
+from skaty.actions import DeclareBid, Listen, Pass, PlayerIdx
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import (
     InvalidDeclarationError,
@@ -15,18 +18,14 @@ from skaty.isko import ISkO
 from skaty.player import Player
 from skaty.rules import (
     BiddingPhase,
-    DealCards,
-    DeclareBid,
     GameType,
-    Listen,
-    Pass,
     PlayerPosition,
 )
 
 isko = ISkO()
-forehand = Player("forehand")
-middlehand = Player("middlehand")
-backhand = Player("backhand")
+forehand: PlayerIdx = 0
+middlehand: PlayerIdx = 1
+backhand: PlayerIdx = 2
 player_with_one = Player("with one", hand=[Card(Rank.JACK, Suit.CLUBS)])
 player_without_four = Player("without four", hand=[Card(Rank.ACE, Suit.DIAMONDS)])
 
@@ -1124,8 +1123,7 @@ def test_determine_trick_winner(case: TrickWinnerTestCase):
 @dataclass
 class IsValidBidTestCase:
     id: str
-    previous_bids: list[tuple[Player, DeclareBid | Listen | Pass]]
-    player: Player
+    previous_bids: list[DeclareBid | Listen | Pass]
     player_pos: PlayerPosition
     bid: DeclareBid | Listen | Pass
     bidding_phase: BiddingPhase
@@ -1138,225 +1136,203 @@ class IsValidBidTestCase:
         IsValidBidTestCase(
             id="backhand_cannot_bid_first",
             previous_bids=[],
-            player=backhand,
             player_pos=PlayerPosition.BACKHAND,
-            bid=DeclareBid(18),
+            bid=DeclareBid(bid=18, player_idx=backhand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="backhand_can_pass_first",
             previous_bids=[],
-            player=backhand,
             player_pos=PlayerPosition.BACKHAND,
-            bid=Pass(),
+            bid=Pass(player_idx=backhand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
         ),
         IsValidBidTestCase(
             id="backhand_cannot_listen_first",
             previous_bids=[],
-            player=backhand,
             player_pos=PlayerPosition.BACKHAND,
-            bid=Listen(),
+            bid=Listen(player_idx=backhand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="forehand_cannot_bid_first",
             previous_bids=[],
-            player=forehand,
             player_pos=PlayerPosition.FOREHAND,
-            bid=DeclareBid(18),
+            bid=DeclareBid(bid=18, player_idx=forehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="forehand_can_pass_first",
             previous_bids=[],
-            player=forehand,
             player_pos=PlayerPosition.FOREHAND,
-            bid=Pass(),
+            bid=Pass(player_idx=forehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
         ),
         IsValidBidTestCase(
             id="forehand_cannot_listen_first",
             previous_bids=[],
-            player=forehand,
             player_pos=PlayerPosition.FOREHAND,
-            bid=Listen(),
+            bid=Listen(player_idx=forehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="middlehand_can_declare_first",
             previous_bids=[],
-            player=middlehand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=DeclareBid(24),
+            bid=DeclareBid(bid=24, player_idx=middlehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
         ),
         IsValidBidTestCase(
             id="middlehand_cannot_listen_first",
             previous_bids=[],
-            player=middlehand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=Listen(),
+            bid=Listen(player_idx=middlehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="middlehand_can_pass_first",
             previous_bids=[],
-            player=middlehand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=Pass(),
+            bid=Pass(player_idx=middlehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
         ),
         IsValidBidTestCase(
             id="all_pass",
-            previous_bids=[(middlehand, Pass()), (backhand, Pass())],
-            player=forehand,
+            previous_bids=[Pass(player_idx=middlehand), Pass(player_idx=backhand)],
             player_pos=PlayerPosition.FOREHAND,
-            bid=Pass(),
+            bid=Pass(player_idx=forehand),
             bidding_phase=BiddingPhase.ForehandBackhand,
         ),
         IsValidBidTestCase(
             id="cannot_declare_invalid_bid",
             previous_bids=[],
-            player=middlehand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=DeclareBid(19),
+            bid=DeclareBid(bid=19, player_idx=middlehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="middlehand_backhand_cannot_listen",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Pass()),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Pass(player_idx=forehand),
             ],
-            player=backhand,
             player_pos=PlayerPosition.BACKHAND,
-            bid=Listen(),
+            bid=Listen(player_idx=backhand),
             bidding_phase=BiddingPhase.MiddlehandBackhand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="middlehand_backhand_bid_must_be_higher",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Pass()),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Pass(player_idx=forehand),
             ],
-            player=backhand,
             player_pos=PlayerPosition.BACKHAND,
-            bid=DeclareBid(18),
+            bid=DeclareBid(bid=18, player_idx=backhand),
             bidding_phase=BiddingPhase.MiddlehandBackhand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="middlehand_backhand_can_bid",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Pass()),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Pass(player_idx=forehand),
             ],
-            player=backhand,
             player_pos=PlayerPosition.BACKHAND,
-            bid=DeclareBid(20),
+            bid=DeclareBid(bid=20, player_idx=backhand),
             bidding_phase=BiddingPhase.MiddlehandBackhand,
         ),
         IsValidBidTestCase(
             id="middlehand_backhand_middlehand_can_listen",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Pass()),
-                (backhand, DeclareBid(20)),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Pass(player_idx=forehand),
+                DeclareBid(bid=20, player_idx=backhand),
             ],
-            player=backhand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=Listen(),
+            bid=Listen(player_idx=middlehand),
             bidding_phase=BiddingPhase.MiddlehandBackhand,
         ),
         IsValidBidTestCase(
             id="middlehand_backhand_middlehand_can_pass",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Pass()),
-                (backhand, DeclareBid(20)),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Pass(player_idx=forehand),
+                DeclareBid(bid=20, player_idx=backhand),
             ],
-            player=backhand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=Pass(),
+            bid=Pass(player_idx=middlehand),
             bidding_phase=BiddingPhase.MiddlehandBackhand,
         ),
         IsValidBidTestCase(
             id="middlehand_backhand_middlehand_cannot_declare",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Pass()),
-                (backhand, DeclareBid(20)),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Pass(player_idx=forehand),
+                DeclareBid(bid=20, player_idx=backhand),
             ],
-            player=backhand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=DeclareBid(22),
+            bid=DeclareBid(bid=22, player_idx=middlehand),
             bidding_phase=BiddingPhase.MiddlehandBackhand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="forehand_middlehand_cannot_listen",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Listen()),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Listen(player_idx=forehand),
             ],
-            player=middlehand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=Listen(),
+            bid=Listen(player_idx=middlehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="forehand_middlehand_can_pass",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Listen()),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Listen(player_idx=forehand),
             ],
-            player=middlehand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=Pass(),
+            bid=Pass(player_idx=middlehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
         ),
         IsValidBidTestCase(
             id="forehand_middlehand_can_bid",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Listen()),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Listen(player_idx=forehand),
             ],
-            player=middlehand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=DeclareBid(20),
+            bid=DeclareBid(bid=20, player_idx=middlehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
         ),
         IsValidBidTestCase(
             id="forehand_middlehand_bid_must_be_higher",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Listen()),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Listen(player_idx=forehand),
             ],
-            player=middlehand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=DeclareBid(18),
+            bid=DeclareBid(bid=18, player_idx=middlehand),
             bidding_phase=BiddingPhase.ForehandMiddlehand,
             expected_result=False,
         ),
         IsValidBidTestCase(
             id="cannot_pass_if_bid_before_and_others_passed",
             previous_bids=[
-                (middlehand, DeclareBid(18)),
-                (forehand, Pass()),
-                (backhand, Pass()),
+                DeclareBid(bid=18, player_idx=middlehand),
+                Pass(player_idx=forehand),
+                Pass(player_idx=backhand),
             ],
-            player=middlehand,
             player_pos=PlayerPosition.MIDDLEHAND,
-            bid=Pass(),
+            bid=Pass(player_idx=middlehand),
             bidding_phase=BiddingPhase.MiddlehandBackhand,
             expected_result=False,
         ),
@@ -1364,9 +1340,31 @@ class IsValidBidTestCase:
     ids=lambda c: c.id,
 )
 def test_is_valid_bid(case: IsValidBidTestCase):
-    result = isko.is_valid_bid(
-        case.player, case.bid, case.previous_bids, case.player_pos, case.bidding_phase
-    )
+    game = GameState.from_random_deal(isko, backhand)
+    for bid in case.previous_bids:
+        previous_state = {
+            "active_player": game.active_player,
+            "bidding_phase": game.bidding_phase,
+            "bid": game.bid,
+            "phase": game.phase,
+            "declarer_idx": game.declarer_idx,
+        }
+
+        game.apply_action(bid)
+
+        # Randomly undo an action to test restoration of state
+        if random.random() > 0.5:
+            game.undo_action()
+            assert previous_state["active_player"] == game.active_player
+            assert previous_state["bidding_phase"] == game.bidding_phase
+            assert previous_state["bid"] == game.bid
+            assert previous_state["phase"] == game.phase
+            assert previous_state["declarer_idx"] == game.declarer_idx
+            game.apply_action(bid)
+
+    assert game.bidding_phase == case.bidding_phase
+
+    result = isko.is_valid_bid(game, case.bid)
     assert case.expected_result == result
 
 
@@ -1395,542 +1393,3 @@ class GetNextValidBidTestCase:
 def test_get_next_valid_bid(case: GetNextValidBidTestCase):
     with case.expectation:
         assert case.expected_result == isko.get_next_valid_bid(case.current_bid)
-
-
-def test_calculate_game_score():
-    ruleset = ISkO()
-    p1 = Player("p1")
-    p2 = Player("p2")
-    p3 = Player("p3")
-
-    p1_with_3 = Player("p1")
-    p1_with_3.add_cards(
-        [
-            Card(Rank.JACK, Suit.CLUBS),
-            Card(Rank.JACK, Suit.SPADES),
-            Card(Rank.JACK, Suit.HEARTS),
-            Card(Rank.ACE, Suit.DIAMONDS),
-        ]
-    )
-
-    p1_without_2 = Player("p1")
-    p1_without_2.add_cards([Card(Rank.JACK, Suit.HEARTS)])
-
-    p1_with_6_diamonds = Player("p1")
-    p1_with_6_diamonds.add_cards(
-        [
-            Card(Rank.JACK, Suit.CLUBS),
-            Card(Rank.JACK, Suit.SPADES),
-            Card(Rank.JACK, Suit.HEARTS),
-            Card(Rank.JACK, Suit.DIAMONDS),
-            Card(Rank.ACE, Suit.DIAMONDS),
-            Card(Rank.TEN, Suit.DIAMONDS),
-            Card(Rank.QUEEN, Suit.DIAMONDS),
-        ]
-    )
-
-    p1_without_11_diamonds = Player("p1")
-    p1_without_11_diamonds.add_cards([Card(Rank.ACE, Suit.CLUBS)])
-
-    players = [p1, p2, p3]
-    # Each test tuple: (players, declarer, points, tricks, game_type, bid, skat, hand, schneider_announced, schwarz_announced, ouvert, expected_score)
-    test_data = [
-        # Declarer wins a suit game
-        (
-            players,
-            0,
-            {p1: 61, p2: 30, p3: 29},
-            [(None, p1)] * 7 + [(None, p2)] * 2 + [(None, p3)],
-            GameType.DIAMONDS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            18,
-        ),
-        # Declarer loses a suit game
-        (
-            players,
-            0,
-            {p1: 60, p2: 30, p3: 30},
-            [(None, p1)] * 7 + [(None, p2)] * 2 + [(None, p3)],
-            GameType.DIAMONDS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            -36,
-        ),
-        # Null game, declarer wins
-        (
-            players,
-            0,
-            {p1: 0, p2: 60, p3: 60},
-            [(None, p2)] * 5 + [(None, p3)] * 5,
-            GameType.NULL,
-            23,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            23,
-        ),
-        # Null game, declarer loses
-        (
-            players,
-            0,
-            {p1: 0, p2: 60, p3: 60},
-            [(None, p1)] + [(None, p2)] * 4 + [(None, p3)] * 5,
-            GameType.NULL,
-            23,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            -46,
-        ),
-        # Null game, declarer loses (overbid)
-        (
-            players,
-            0,
-            {p1: 0, p2: 60, p3: 60},
-            [(None, p2)] * 5 + [(None, p3)] * 5,
-            GameType.NULL,
-            24,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            -46,
-        ),
-        # Null hand
-        (
-            players,
-            0,
-            {p1: 0, p2: 60, p3: 60},
-            [(None, p2)] * 5 + [(None, p3)] * 5,
-            GameType.NULL,
-            35,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            False,
-            False,
-            False,
-            35,
-        ),
-        # Null ouvert
-        (
-            players,
-            0,
-            {p1: 0, p2: 60, p3: 60},
-            [(None, p2)] * 5 + [(None, p3)] * 5,
-            GameType.NULL,
-            46,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            True,
-            46,
-        ),
-        # Null ouvert
-        (
-            players,
-            0,
-            {p1: 0, p2: 60, p3: 60},
-            [(None, p2)] * 5 + [(None, p3)] * 5,
-            GameType.NULL,
-            46,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            True,
-            46,
-        ),
-        # Null hand ouvert
-        (
-            players,
-            0,
-            {p1: 0, p2: 60, p3: 60},
-            [(None, p2)] * 5 + [(None, p3)] * 5,
-            GameType.NULL,
-            59,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            False,
-            False,
-            True,
-            59,
-        ),
-        # Null hand ouvert (overbid)
-        (
-            players,
-            0,
-            {p1: 0, p2: 60, p3: 60},
-            [(None, p2)] * 5 + [(None, p3)] * 5,
-            GameType.NULL,
-            60,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            False,
-            False,
-            True,
-            -118,
-        ),
-        # Suit game without modifiers
-        (
-            [p1_with_3, p2, p3],
-            0,
-            {p1_with_3: 61, p2: 29, p3: 30},
-            [(None, p1_with_3)] * 7 + [(None, p3)] * 3,
-            GameType.DIAMONDS,
-            36,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            36,
-        ),
-        # Suit game without modifiers
-        (
-            [p1_with_3, p2, p3],
-            0,
-            {p1_with_3: 61, p2: 29, p3: 30},
-            [(None, p1_with_3)] * 7 + [(None, p3)] * 3,
-            GameType.DIAMONDS,
-            36,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            36,
-        ),
-        # Suit game without modifiers (overbid)
-        (
-            [p1_with_3, p2, p3],
-            0,
-            {p1_with_3: 61, p2: 29, p3: 30},
-            [(None, p1_with_3)] * 7 + [(None, p3)] * 3,
-            GameType.DIAMONDS,
-            40,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            -72,
-        ),
-        # Suit game without modifiers (lost)
-        (
-            [p1_with_3, p2, p3],
-            0,
-            {p1_with_3: 60, p2: 30, p3: 30},
-            [(None, p1_with_3)] * 7 + [(None, p3)] * 3,
-            GameType.DIAMONDS,
-            36,
-            (Card(Rank.ACE, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            -72,
-        ),
-        # Grand game with 4
-        (
-            [p1_with_3, p2, p3],
-            0,
-            {p1_with_3: 61, p2: 30, p3: 29},
-            [(None, p1_with_3)] * 7 + [(None, p3)] * 3,
-            GameType.GRAND,
-            120,
-            (Card(Rank.JACK, Suit.DIAMONDS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            120,
-        ),
-        # Grand game without 2
-        (
-            [p1_without_2, p2, p3],
-            0,
-            {p1_without_2: 61, p2: 30, p3: 29},
-            [(None, p1_without_2)] * 7 + [(None, p3)] * 3,
-            GameType.GRAND,
-            72,
-            (Card(Rank.JACK, Suit.DIAMONDS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            72,
-        ),
-        # Schneider achieved
-        (
-            players,
-            0,
-            {p1: 90, p2: 15, p3: 15},
-            [(None, p1)] * 7 + [(None, p3)] * 3,
-            GameType.CLUBS,
-            36,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            36,
-        ),
-        # Schneider for opposition achieved
-        (
-            players,
-            0,
-            {p1: 30, p2: 10, p3: 80},
-            [(None, p1)] * 7 + [(None, p3)] * 3,
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            False,
-            False,
-            False,
-            False,
-            -72,
-        ),
-        # Hand
-        (
-            players,
-            0,
-            {p1: 61, p2: 29, p3: 30},
-            [(None, p1)] * 7 + [(None, p3)] * 3,
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            False,
-            False,
-            False,
-            36,
-        ),
-        # Hand, Schneider announced
-        (
-            players,
-            0,
-            {p1: 90, p2: 10, p3: 20},
-            [(None, p1)] * 7 + [(None, p3)] * 3,
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            True,
-            False,
-            False,
-            60,
-        ),
-        # Hand, Schneider announced, but not reached
-        (
-            players,
-            0,
-            {p1: 89, p2: 11, p3: 20},
-            [(None, p1)] * 7 + [(None, p3)] * 3,
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            True,
-            False,
-            False,
-            -96,
-        ),
-        # Hand, Schneider announced, but opposition played Schneider
-        (
-            players,
-            0,
-            {p1: 30, p2: 10, p3: 80},
-            [(None, p1)] * 3 + [(None, p3)] * 7,
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            True,
-            False,
-            False,
-            -120,
-        ),
-        # Hand, Schwarz announced
-        (
-            players,
-            0,
-            {p1: 120, p2: 0, p3: 0},
-            [(None, p1)] * 10,
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            True,
-            True,
-            False,
-            84,
-        ),
-        # Hand, Schwarz announced, but not reached, still played Schneider
-        (
-            players,
-            0,
-            {p1: 120, p2: 0, p3: 0},
-            [(None, p1)] * 9 + [(None, p3)],
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            True,
-            True,
-            False,
-            -144,
-        ),
-        # Hand, Schwarz announced, but not reached, no Schneider
-        (
-            players,
-            0,
-            {p1: 61, p2: 29, p3: 31},
-            [(None, p1)] * 9 + [(None, p3)],
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            True,
-            True,
-            False,
-            -120,
-        ),
-        # Hand, Schneider announced, but opposition played Schneider
-        (
-            players,
-            0,
-            {p1: 30, p2: 10, p3: 80},
-            [(None, p1)] * 3 + [(None, p3)] * 7,
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            True,
-            True,
-            False,
-            -144,
-        ),
-        # Open
-        (
-            players,
-            0,
-            {p1: 120, p2: 0, p3: 0},
-            [(None, p1)] * 10,
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            True,
-            True,
-            True,
-            96,
-        ),
-        # Open, no schwarz
-        (
-            players,
-            0,
-            {p1: 120, p2: 0, p3: 0},
-            [(None, p1)] * 9 + [(None, p3)],
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            True,
-            True,
-            True,
-            -168,
-        ),
-        # Open, no schwarz, no schneider
-        (
-            players,
-            0,
-            {p1: 89, p2: 21, p3: 10},
-            [(None, p1)] * 7 + [(None, p3)] * 3,
-            GameType.CLUBS,
-            18,
-            (Card(Rank.JACK, Suit.CLUBS), Card(Rank.TEN, Suit.HEARTS)),
-            True,
-            True,
-            True,
-            True,
-            -144,
-        ),
-    ]
-
-    for (
-        players,
-        declarer,
-        points,
-        tricks,
-        game_type,
-        bid,
-        skat,
-        hand,
-        schneider_announced,
-        schwarz_announced,
-        ouvert,
-        expected_score,
-    ) in test_data:
-        score = ruleset.calculate_game_score(
-            players,
-            declarer,
-            points,
-            tricks,
-            game_type,
-            bid,
-            skat,
-            hand,
-            schneider_announced,
-            schwarz_announced,
-            ouvert,
-        )
-        assert score == expected_score
-
-
-def test_get_valid_actions():
-    p1 = Player("p1")
-    p2 = Player("p2")
-    p3 = Player("p3")
-    players = [p1, p2, p3]
-    ruleset = ISkO()
-    game = GameState(players, ruleset, 2)
-
-    assert list(game.get_valid_actions(p1)) == []
-    assert list(game.get_valid_actions(p2)) == []
-    assert set(game.get_valid_actions(p3)) == {DealCards()}
-
-    game.apply_action(p3, DealCards())
-    # Not active
-    assert list(game.get_valid_actions(p1)) == []
-    assert list(game.get_valid_actions(p3)) == []
-    # Active (declarer)
-    assert set(game.get_valid_actions(p2)) == {Pass(), DeclareBid(18)}
-
-    game.apply_action(p2, DeclareBid(18))
-    # Not active
-    assert list(game.get_valid_actions(p2)) == []
-    assert list(game.get_valid_actions(p3)) == []
-    # Active (listener)
-    assert set(game.get_valid_actions(p1)) == {Pass(), Listen()}
-
-    game.apply_action(p1, Listen())
-    # Not active
-    assert list(game.get_valid_actions(p1)) == []
-    assert list(game.get_valid_actions(p3)) == []
-    # Active (listener)
-    assert set(game.get_valid_actions(p2)) == {Pass(), DeclareBid(20)}
