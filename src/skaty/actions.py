@@ -212,6 +212,10 @@ class DeclareGame(Action):
         if not super().is_valid(state, ruleset):
             return False
 
+        # Only the declarer can declare a game
+        if self.player_idx != state.declarer_idx:
+            return False
+
         return ruleset.is_valid_game_declaration(
             state,
             GameDeclaration(
