@@ -4,11 +4,10 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Literal
 
 from skaty.cards import Card
-from skaty.rules import AbstractRuleSet, GameType
+from skaty.rules import AbstractRuleSet, GameDeclaration, GamePhase, GameType
 
 if TYPE_CHECKING:
     from skaty.game_state import GameState
-    from skaty.rules import AbstractRuleSet
 
 type PlayerIdx = Literal[0, 1, 2]
 
@@ -55,73 +54,6 @@ class Action:
     def undo(self, state: GameState) -> None:
         """Reverse to state before action was applied. Restores state exactly."""
         pass
-
-
-@dataclass
-class PlayCard(Action):
-    """Play specific card."""
-
-    card: Card
-
-
-@dataclass
-class DrawSkat(Action):
-    """Draw Skat into players hand, removing hand multiplier."""
-
-    def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
-        if not super().is_valid(state, ruleset):
-            return False
-
-        return len(state.skat) == 2
-
-    def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
-        self._memory = {
-            "skat": state.skat.copy(),
-            "hand": state.hands[state.active_player].copy(),
-            "hand_available": state.hand_available,
-        }
-
-        state.hands[state.active_player] += state.skat
-        state.skat = []
-        state.hand_available = False
-
-    def undo(self, state: GameState) -> None:
-        state.skat = self._memory["skat"]
-        state.hands[state.active_player] = self._memory["hand"]
-        state.hand_available = self._memory["hand_available"]
-
-
-@dataclass
-class BurySkat(Action):
-    """Bury cards from hand into the Skat."""
-
-    cards: tuple[Card, Card]
-
-    def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
-        if not super().is_valid(state, ruleset):
-            return False
-
-        if len(state.skat) != 0:
-            return False
-
-        hand = state.hands[state.active_player]
-        # Cannot bury card not in hand
-        if self.cards[0] not in hand or self.cards[1] not in hand:
-            return False
-        # Cannot bury same card twice
-        if self.cards[0] == self.cards[1]:
-            return False
-
-        return True
-
-    def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
-        state.skat = list(self.cards)
-        state.hands[state.active_player].remove(self.cards[0])
-        state.hands[state.active_player].remove(self.cards[1])
-
-    def undo(self, state: GameState) -> None:
-        state.skat = []
-        state.hands[state.active_player] += list(self.cards)
 
 
 @dataclass
@@ -208,14 +140,120 @@ class Pass(Action):
 
 
 @dataclass
+class DrawSkat(Action):
+    """Draw Skat into players hand, removing hand multiplier."""
+
+    def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
+        if not super().is_valid(state, ruleset):
+            return False
+
+        return len(state.skat) == 2
+
+    def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
+        self._memory = {
+            "skat": state.skat.copy(),
+            "hand": state.hands[state.active_player].copy(),
+            "hand_available": state.hand_available,
+        }
+
+        state.hands[state.active_player] += state.skat
+        state.skat = []
+        state.hand_available = False
+
+    def undo(self, state: GameState) -> None:
+        state.skat = self._memory["skat"]
+        state.hands[state.active_player] = self._memory["hand"]
+        state.hand_available = self._memory["hand_available"]
+
+
+@dataclass
+class BurySkat(Action):
+    """Bury cards from hand into the Skat."""
+
+    cards: tuple[Card, Card]
+
+    def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
+        if not super().is_valid(state, ruleset):
+            return False
+
+        if len(state.skat) != 0:
+            return False
+
+        hand = state.hands[state.active_player]
+        # Cannot bury card not in hand
+        if self.cards[0] not in hand or self.cards[1] not in hand:
+            return False
+        # Cannot bury same card twice
+        if self.cards[0] == self.cards[1]:
+            return False
+
+        return True
+
+    def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
+        state.skat = list(self.cards)
+        state.hands[state.active_player].remove(self.cards[0])
+        state.hands[state.active_player].remove(self.cards[1])
+
+    def undo(self, state: GameState) -> None:
+        state.skat = []
+        state.hands[state.active_player] += list(self.cards)
+
+
+@dataclass
 class DeclareGame(Action):
-    """Declare specific game"""
+    """Declare specific game. Hand is applied automatically dependent on the game state."""
 
     game_type: GameType
-    hand: bool = False
     schneider: bool = False
     schwarz: bool = False
     open: bool = False
+
+    def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
+        if not super().is_valid(state, ruleset):
+            return False
+
+        return ruleset.is_valid_game_declaration(
+            state,
+            GameDeclaration(
+                game_type=self.game_type,
+                hand=state.hand_available,
+                schneider=self.schneider,
+                schwarz=self.schwarz,
+                open=self.open,
+            ),
+        )
+
+    def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
+        self._memory = {
+            "active_player": state.active_player,
+            "phase": state.phase,
+            "declaration": state.declaration,
+            "game_type": state.game_type,
+        }
+
+        state.phase = GamePhase.PLAYING
+        state.declaration = GameDeclaration(
+            game_type=self.game_type,
+            hand=state.hand_available,
+            schneider=self.schneider,
+            schwarz=self.schwarz,
+            open=self.open,
+        )
+        state.active_player = state._forehand
+        state.game_type = self.game_type
+
+    def undo(self, state: GameState) -> None:
+        state.phase = self._memory["phase"]
+        state.declaration = self._memory["declaration"]
+        state.active_player = self._memory["active_player"]
+        state.game_type = self._memory["game_type"]
+
+
+@dataclass
+class PlayCard(Action):
+    """Play specific card."""
+
+    card: Card
 
 
 @dataclass

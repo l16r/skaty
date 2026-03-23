@@ -11,18 +11,9 @@ from skaty.rules import (
     GamePhase,
     GameType,
     PlayerPosition,
+    GameDeclaration,
 )
 from skaty.trick import Trick
-from dataclasses import dataclass
-
-
-@dataclass
-class GameDeclaration:
-    game_type: GameType
-    hand: bool = False
-    schneider: bool = False
-    schwarz: bool = False
-    open: bool = False
 
 
 class GameState:
@@ -88,6 +79,7 @@ class GameState:
 
         self.hand_available = True
         self.declarer_idx: Optional[PlayerIdx] = None
+        self.declaration: Optional[GameDeclaration] = None
 
     @classmethod
     def from_random_deal(

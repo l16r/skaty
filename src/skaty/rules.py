@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from enum import Enum, IntEnum
 from typing import Optional
 from typing import TYPE_CHECKING
@@ -7,7 +8,7 @@ from typing import TYPE_CHECKING
 # Import in this condition to avoid circular imports.
 if TYPE_CHECKING:
     from skaty.trick import Trick
-    from skaty.actions import Action, DeclareBid, Listen, Pass, PlayerIdx
+    from skaty.actions import Action, DeclareBid, Listen, Pass
     from skaty.game_state import GameState
 
 from skaty.cards import Card, Suit
@@ -54,6 +55,15 @@ class GameType(IntEnum):
     CLUBS = 12
     NULL = 23
     GRAND = 24
+
+
+@dataclass
+class GameDeclaration:
+    game_type: GameType
+    hand: bool = False
+    schneider: bool = False
+    schwarz: bool = False
+    open: bool = False
 
 
 class AbstractRuleSet(ABC):
@@ -130,15 +140,7 @@ class AbstractRuleSet(ABC):
 
     @abstractmethod
     def is_valid_game_declaration(
-        self,
-        player: Player,
-        skat: tuple[Card, Card],
-        bid: int,
-        game_type: GameType,
-        hand: bool,
-        schneider: bool,
-        schwarz: bool,
-        open: bool,
+        self, state: GameState, declaration: GameDeclaration
     ) -> bool:
         pass
 

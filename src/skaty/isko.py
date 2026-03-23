@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, cast
+from typing import TYPE_CHECKING, Optional
 
 from skaty.actions import (
     Action,
@@ -10,12 +10,10 @@ from skaty.actions import (
     Listen,
     Pass,
     PlayCard,
-    PlayerIdx,
 )
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import (
     InvalidDeclarationError,
-    InvalidGameStateError,
     InvalidGameTypeError,
     NoCardsError,
     NoHigherBidPossible,
@@ -25,6 +23,7 @@ from skaty.player import Player
 from skaty.rules import (
     AbstractRuleSet,
     BiddingPhase,
+    GameDeclaration,
     GamePhase,
     GameType,
     PlayerPosition,
@@ -467,27 +466,27 @@ class ISkO(AbstractRuleSet):
         return True
 
     def is_valid_game_declaration(
-        self,
-        player: Player,
-        skat: tuple[Card, Card],
-        bid: int,
-        game_type: GameType,
-        hand: bool,
-        schneider: bool,
-        schwarz: bool,
-        open: bool,
+        self, state: GameState, declaration: GameDeclaration
     ) -> bool:
         """
-        Determines if the arguments represent a valid game declaration given the bid value. The multipliers must be applied correctly. The most favorable scenario for the player (i.e. assuming playing Schwarz) must give him enough points to achieve the bid. When playing hand, the skat is ignored from tops, as the player possesses no information about it.
+        Determines if the game declaration is correct and high enough to satisfy the bid.
+        The game declaration is correct if the multipliers are applied correctly.
+        In a suit or Grand game, the favorable scenario for the declarer is assumed. That is, playing Schwarz is assumed.
+        When playing hand, the Skat is ignored from tops, as the player possesses no information about it.
+        GameType.PASS is always rejected.
 
         Raises:
             InvalidDeclarationError: If bid is invalid.
-            InvalidGameTypeError: If game_type is GameType.PASS.
         """
+        game_type = declaration.game_type
+        bid = state.bid
+        hand = declaration.hand
+        schneider = declaration.schneider
+        schwarz = declaration.schwarz
+        open = declaration.open
+
         if game_type is GameType.PASS:
-            raise InvalidGameTypeError(
-                "A game declaration can not be made with GameType.PASS."
-            )
+            return False
         if bid not in self._VALID_BIDS:
             raise InvalidDeclarationError("Invalid bid value.")
 
@@ -520,11 +519,13 @@ class ISkO(AbstractRuleSet):
         if open and schwarz and schneider and hand:
             multiplier += 1
 
+        player_hand = state.hands[state.active_player]
+
         # The declaration is based upon the knowledge of the player.
         if hand:
-            tops = self.tops(player.hand, game_type)
+            tops = self.tops(player_hand, game_type)
         else:
-            tops = self.tops(player.hand + list(skat), game_type)
+            tops = self.tops(player_hand + list(state.skat), game_type)
 
         # If the player plays Schwarz, he also gets one multiplier for each playing Schneider and Schwarz.
         return bid <= (tops + multiplier + 2) * base_value
