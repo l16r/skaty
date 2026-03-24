@@ -471,21 +471,11 @@ class ISkO(AbstractRuleSet):
         # Otherwise, any card is valid
         return True
 
-    def is_valid_game_declaration(
-        self, state: GameState, declaration: GameDeclaration
-    ) -> bool:
+    def is_valid_game_declaration(self, declaration: GameDeclaration) -> bool:
         """
-        Determines if the game declaration is correct and high enough to satisfy the bid.
-        The game declaration is correct if the multipliers are applied correctly.
-        In a suit or Grand game, the favorable scenario for the declarer is assumed. That is, playing Schwarz is assumed.
-        When playing hand, the Skat is ignored from tops, as the player possesses no information about it.
-        GameType.PASS is always rejected.
-
-        Raises:
-            InvalidDeclarationError: If bid is invalid.
+        Determines if the game declaration is formally correct. It does not check if the game satisfies the bid. A player is allowed to overbid, but will lose during score calculation.
         """
         game_type = declaration.game_type
-        bid = state.bid
         hand = declaration.hand
         schneider = declaration.schneider
         schwarz = declaration.schwarz
@@ -493,48 +483,19 @@ class ISkO(AbstractRuleSet):
 
         if game_type is GameType.PASS:
             return False
-        if bid not in self._VALID_BIDS:
-            raise InvalidDeclarationError("Invalid bid value.")
 
         if game_type is GameType.NULL:
-            # ISkO 2.4.2
-            if open and hand:
-                return bid <= 59
-            elif open:
-                return bid <= 46
-            elif hand:
-                return bid <= 35
-            return bid <= 23
+            if schneider or schwarz:
+                return False
+        else:  # Suit and Grand
+            if schneider and not hand:
+                return False
+            if schwarz and not (hand and schneider):
+                return False
+            if open and not (hand and schneider and schwarz):
+                return False
 
-        # Check multiplier validity. Open requires Schwarz requires Schneider requires Hand.
-        if schneider and not hand:
-            return False
-        elif schwarz and not (hand and schneider):
-            return False
-        elif open and not (hand and schneider and schwarz):
-            return False
-
-        base_value = game_type.value
-        multiplier = 1
-        if hand:
-            multiplier += 1
-        if schneider and hand:
-            multiplier += 1
-        if schwarz and schneider and hand:
-            multiplier += 1
-        if open and schwarz and schneider and hand:
-            multiplier += 1
-
-        player_hand = state.hands[state.active_player]
-
-        # The declaration is based upon the knowledge of the player.
-        if hand:
-            tops = self.tops(player_hand, game_type)
-        else:
-            tops = self.tops(player_hand + list(state.skat), game_type)
-
-        # If the player plays Schwarz, he also gets one multiplier for each playing Schneider and Schwarz.
-        return bid <= (tops + multiplier + 2) * base_value
+        return True
 
     def get_valid_actions(
         self, state: GameState, player_idx: PlayerIdx
@@ -647,7 +608,7 @@ class ISkO(AbstractRuleSet):
                     schwarz=schwarz,
                     open=open,
                 )
-                return self.is_valid_game_declaration(state, declaration)
+                return self.is_valid_game_declaration(declaration)
 
             case PlayCard(player_idx, card):
                 return self.is_valid_card_play(
