@@ -1,14 +1,14 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum, IntEnum
-from typing import Optional
+from typing import Generator, Optional
 from typing import TYPE_CHECKING
 
 
 # Import in this condition to avoid circular imports.
 if TYPE_CHECKING:
     from skaty.trick import Trick
-    from skaty.actions import Action, DeclareBid, Listen, Pass, PlayCard
+    from skaty.actions import Action, PlayerIdx
     from skaty.game_state import GameState
 
 from skaty.cards import Card, Suit
@@ -105,59 +105,18 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def is_valid_action_during_phase(
-        self,
-        action: Action,
-        phase: GamePhase,
-    ) -> bool:
+    def is_valid_action(self, state: GameState, action: Action) -> bool:
+        """Checks if an action is valid in the current state."""
         pass
 
     @abstractmethod
-    def get_action_types_for_phase(self, phase: GamePhase) -> list[type[Action]]:
+    def get_valid_actions(
+        self, state: GameState, player_idx: PlayerIdx
+    ) -> Generator["Action", None, None]:
+        """Yields all valid actions the player can take in state."""
         pass
 
     @abstractmethod
-    def get_next_valid_bid(self, current_bid: Optional[int]) -> int:
+    def advance_state(self, state: GameState, action: Action) -> None:
+        """Gets called, after action is applied on state. The rule set could for example change phases or the active player."""
         pass
-
-    @abstractmethod
-    def is_valid_bid(
-        self,
-        state: GameState,
-        bid: DeclareBid | Listen | Pass,
-    ) -> bool:
-        pass
-
-    @abstractmethod
-    def is_valid_card_play(
-        self,
-        hand: list[Card],
-        card: Card,
-        first_card: Optional[Card],
-        game_type: GameType,
-    ) -> bool:
-        pass
-
-    @abstractmethod
-    def is_valid_game_declaration(
-        self, state: GameState, declaration: GameDeclaration
-    ) -> bool:
-        pass
-
-    @abstractmethod
-    def get_valid_actions(self, state: GameState, player_idx: int) -> list["Action"]:
-        pass
-
-    @abstractmethod
-    def advance_bidding(
-        self, state: GameState, action: DeclareBid | Listen | Pass
-    ) -> None:
-        """
-        Mutate the state in bidding dependent on action.
-        """
-
-    @abstractmethod
-    def advance_playing(self, state: GameState, action: PlayCard) -> None:
-        """
-        Mutate the state as card is played.
-        """

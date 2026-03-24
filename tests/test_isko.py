@@ -4,7 +4,7 @@ import random
 from typing import Any, ContextManager, Optional
 from unittest.mock import MagicMock
 import pytest
-from skaty.actions import DeclareBid, Listen, Pass, PlayerIdx
+from skaty.actions import DeclareBid, Listen, Pass, PlayCard, PlayerIdx
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import (
     InvalidDeclarationError,
@@ -19,9 +19,11 @@ from skaty.player import Player
 from skaty.rules import (
     BiddingPhase,
     GameDeclaration,
+    GamePhase,
     GameType,
     PlayerPosition,
 )
+from skaty.trick import Trick
 
 isko = ISkO()
 forehand: PlayerIdx = 0
@@ -1342,6 +1344,16 @@ class IsValidBidTestCase:
             bidding_phase=BiddingPhase.MiddlehandBackhand,
             expected_result=False,
         ),
+        IsValidBidTestCase(
+            id="two_pass_bid_wins_game",
+            previous_bids=[
+                Pass(player_idx=middlehand),
+                Pass(player_idx=backhand),
+            ],
+            player_pos=PlayerPosition.FOREHAND,
+            bid=DeclareBid(bid=18, player_idx=forehand),
+            bidding_phase=BiddingPhase.ForehandBackhand,
+        ),
     ],
     ids=lambda c: c.id,
 )
@@ -1399,3 +1411,37 @@ class GetNextValidBidTestCase:
 def test_get_next_valid_bid(case: GetNextValidBidTestCase):
     with case.expectation:
         assert case.expected_result == isko.get_next_valid_bid(case.current_bid)
+
+
+@dataclass
+class AdvanceBiddingTestCase:
+    id: str
+    bids: list[DeclareBid | Listen | Pass]
+    expect_phase: GamePhase
+    expect_active_player: PlayerIdx
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        AdvanceBiddingTestCase(
+            id="two_pass_declares",
+            bids=[
+                Pass(player_idx=middlehand),
+                Pass(player_idx=backhand),
+                DeclareBid(bid=18, player_idx=forehand),
+            ],
+            expect_phase=GamePhase.DECLARATION,
+            expect_active_player=forehand,
+        )
+    ],
+    ids=lambda c: c.id,
+)
+def test_advance_bidding(case: AdvanceBiddingTestCase):
+    game = GameState.from_random_deal(isko, backhand)
+
+    for bid in case.bids:
+        game.apply_action(bid)
+
+    assert game.phase == case.expect_phase
+    assert game.active_player == case.expect_active_player

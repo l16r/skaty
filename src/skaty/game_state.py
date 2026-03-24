@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Generator, Optional
 
 from skaty.actions import Action, DeclareBid, Listen, Pass, PlayerIdx
 from skaty.cards import Card, create_deck, shuffle_deck
@@ -50,7 +50,7 @@ class GameState:
         self._forehand: PlayerIdx = (dealer_idx + 1) % 3
         self._middlehand: PlayerIdx = (dealer_idx + 2) % 3
         self._backhand: PlayerIdx = dealer_idx
-        self.active_player = self._middlehand
+        self.active_player: PlayerIdx = self._middlehand
 
         if len(hands) != 3:
             raise InvalidGameStateError(
@@ -130,12 +130,10 @@ class GameState:
 
         action.undo(self)
 
-    def get_valid_actions(self, player_idx: int) -> list[Action]:
+    def get_valid_actions(self, player_idx: PlayerIdx) -> Generator[Action, None, None]:
         """
         All valid actions for a given player in current state.
         """
-        if player_idx != self.active_player or self.phase == GamePhase.GAME_OVER:
-            return []
         return self._rule_set.get_valid_actions(self, player_idx)
 
     @property
@@ -154,14 +152,6 @@ class GameState:
         return len(
             [action.player_idx for action in self.all_bids if isinstance(action, Pass)]
         )
-
-    @property
-    def get_first_card_in_current_trick(self) -> Optional[Card]:
-        if len(self.trick_history) == 0:
-            return None
-
-        current_trick = self.trick_history[-1]
-        return current_trick.first_card
 
     def get_player_position(self, player_idx: PlayerIdx) -> PlayerPosition:
         if player_idx == self._forehand:

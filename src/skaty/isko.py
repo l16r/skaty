@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import Generator, Optional, cast
 
 from skaty.actions import (
     Action,
@@ -9,9 +9,11 @@ from skaty.actions import (
     Listen,
     Pass,
     PlayCard,
+    PlayerIdx,
 )
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import (
+    InvalidActionError,
     InvalidDeclarationError,
     InvalidGameTypeError,
     NoCardsError,
@@ -28,9 +30,9 @@ from skaty.rules import (
     PlayerPosition,
 )
 from skaty.trick import Trick
+from skaty.game_state import GameState
+from itertools import combinations
 
-if TYPE_CHECKING:
-    from skaty.game_state import GameState
 
 # All bid values possible per ISkO (Null values and grand/suit values multiplied with range of their possible multipliers).
 _VALID_BIDS = frozenset(
@@ -534,8 +536,146 @@ class ISkO(AbstractRuleSet):
         # If the player plays Schwarz, he also gets one multiplier for each playing Schneider and Schwarz.
         return bid <= (tops + multiplier + 2) * base_value
 
-    def get_valid_actions(self, state: GameState, player_idx: int) -> list[Action]:
-        return []
+    def get_valid_actions(
+        self, state: GameState, player_idx: PlayerIdx
+    ) -> Generator[Action, None, None]:
+        if player_idx != state.active_player or state.phase == GamePhase.GAME_OVER:
+            return
+
+        valid_actions = self.get_action_types_for_phase(state.phase)
+
+        for action_type in valid_actions:
+            if action_type is PlayCard:
+                hand = state.hands[player_idx]
+                for card in hand:
+                    action = PlayCard(card=card, player_idx=player_idx)
+                    if action.is_valid(state, self):
+                        yield action
+
+            elif action_type is DeclareBid:
+                try:
+                    next_bid = self.get_next_valid_bid(state.bid)
+                except NoHigherBidPossible:
+                    continue
+
+                action = DeclareBid(bid=next_bid, player_idx=player_idx)
+                if action.is_valid(state, self):
+                    yield action
+
+            elif action_type in (Pass, Listen, DrawSkat):
+                action = action_type(player_idx=player_idx)
+                if action.is_valid(state, self):
+                    yield action
+
+            elif action_type is BurySkat and len(state.skat) == 0:
+                hand = state.hands[player_idx]
+                for combo in combinations(hand, 2):
+                    yield BurySkat(cards=(combo[0], combo[1]), player_idx=player_idx)
+
+            elif action_type is DeclareGame:
+                for gt in GameType:
+                    if gt is GameType.PASS:
+                        continue
+                    elif gt is GameType.NULL:
+                        yield DeclareGame(
+                            game_type=gt, open=False, player_idx=player_idx
+                        )
+                        yield DeclareGame(
+                            game_type=gt, open=True, player_idx=player_idx
+                        )
+                    else:  # Suit or Grand
+                        # Hand or not hand game without any modifiers
+                        yield DeclareGame(game_type=gt, player_idx=player_idx)
+                        if not state.hand_available:
+                            # Schneider etc. not applicable
+                            continue
+
+                        yield DeclareGame(
+                            game_type=gt, schneider=True, player_idx=player_idx
+                        )
+                        yield DeclareGame(
+                            game_type=gt,
+                            schneider=True,
+                            schwarz=True,
+                            player_idx=player_idx,
+                        )
+                        yield DeclareGame(
+                            game_type=gt,
+                            schneider=True,
+                            schwarz=True,
+                            open=True,
+                            player_idx=player_idx,
+                        )
+
+    def is_valid_action(self, state: GameState, action: Action) -> bool:
+        # Only the active player can take action
+        if action.player_idx != state.active_player:
+            return False
+
+        # Only allow actions their phase
+        if not self.is_valid_action_during_phase(action, state.phase):
+            return False
+
+        match action:
+            case DeclareBid() | Listen() | Pass():
+                return self.is_valid_bid(state, action)
+
+            case BurySkat(player_idx, cards):
+                if len(state.skat) != 0:
+                    return False
+
+                hand = state.hands[player_idx]
+                # Cannot bury card not in hand
+                if cards[0] not in hand or cards[1] not in hand:
+                    return False
+                if cards[0] == cards[1]:
+                    return False
+
+                return True
+
+            case DrawSkat(player_idx):
+                return len(state.skat) == 2
+
+            case DeclareGame(player_idx, game_type, schneider, schwarz, open):
+                if player_idx != state.declarer_idx:
+                    return False
+
+                declaration = GameDeclaration(
+                    game_type,
+                    hand=state.hand_available,
+                    schneider=schneider,
+                    schwarz=schwarz,
+                    open=open,
+                )
+                return self.is_valid_game_declaration(state, declaration)
+
+            case PlayCard(player_idx, card):
+                return self.is_valid_card_play(
+                    state.hands[player_idx],
+                    card,
+                    state.current_trick.first_card,
+                    state.game_type,
+                )
+
+        raise InvalidActionError(
+            f"Cannot determine if action {action} is valid in {state}."
+        )
+
+    def advance_state(self, state: GameState, action: Action) -> None:
+        match action:
+            case DeclareBid() | Listen() | Pass():
+                return self.advance_bidding(state, action)
+            case DrawSkat() | BurySkat():
+                return
+            case DeclareGame(player_idx, game_type, schneider, schwarz, open):
+                state.phase = GamePhase.PLAYING
+                state.declaration = GameDeclaration(
+                    game_type, state.hand_available, schneider, schwarz, open
+                )
+                state.active_player = state._forehand
+                state.game_type = game_type
+            case PlayCard():
+                return self.advance_playing(state, action)
 
     def advance_bidding(
         self, state: GameState, action: DeclareBid | Listen | Pass
@@ -605,12 +745,17 @@ class ISkO(AbstractRuleSet):
                 state.declarer_idx = other_player
                 state.active_player = state.declarer_idx
             elif passes == 2:
-                state.phase = GamePhase.GAME_OVER
-            elif passes == 1:
+                state.phase = GamePhase.PASSED
+            elif passes < 2:
                 state.active_player = other_player
 
         elif isinstance(action, (Listen, DeclareBid)):
-            state.active_player = other_player
+            if passes == 2:
+                state.phase = GamePhase.DECLARATION
+                state.declarer_idx = player
+                state.active_player = state.declarer_idx
+            else:
+                state.active_player = other_player
 
     def advance_playing(self, state: GameState, action: PlayCard) -> None:
         """
@@ -624,6 +769,7 @@ class ISkO(AbstractRuleSet):
         - state.points
         """
         state.current_trick.add_card(action.card)
+
         if state.current_trick.is_complete():
             points = state.current_trick.get_trick_points()
             # Index of winner in trick order
@@ -642,6 +788,6 @@ class ISkO(AbstractRuleSet):
                 return
 
             # Winner of trick starts next trick
-            state.active_player = winner
+            state.active_player = cast(PlayerIdx, winner)
         else:
             state.active_player = (state.active_player + 1) % 3
