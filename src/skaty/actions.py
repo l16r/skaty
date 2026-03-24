@@ -24,7 +24,6 @@ class ActionType(Enum):
     LISTEN = "LISTEN"
     PASS = "PASS"
     DECLARE_GAME = "DECLARE_GAME"
-    GIVE_UP = "GIVE_UP"
 
 
 @dataclass
@@ -289,10 +288,3 @@ class PlayCard(Action):
         state.current_trick = self._memory["current_trick"]
         state.trick_history = self._memory["trick_history"]
         state.phase = self._memory["phase"]
-
-
-@dataclass
-class GiveUp(Action):
-    """Give up."""
-
-    pass

@@ -6,7 +6,6 @@ from skaty.actions import (
     DeclareBid,
     DeclareGame,
     DrawSkat,
-    GiveUp,
     Listen,
     Pass,
     PlayCard,
@@ -115,7 +114,6 @@ class ISkO(AbstractRuleSet):
         DeclareBid: [GamePhase.BID],
         Listen: [GamePhase.BID],
         Pass: [GamePhase.BID],
-        GiveUp: [GamePhase.PLAYING],
     }
 
     def __init__(self) -> None:
