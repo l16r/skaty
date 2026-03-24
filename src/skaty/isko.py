@@ -1,4 +1,6 @@
 from typing import Generator, Optional, cast
+import math
+from itertools import combinations
 
 from skaty.actions import (
     Action,
@@ -14,13 +16,12 @@ from skaty.actions import (
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import (
     InvalidActionError,
-    InvalidDeclarationError,
+    InvalidGameStateError,
     InvalidGameTypeError,
     NoCardsError,
     NoHigherBidPossible,
     TrickNotFinishedError,
 )
-from skaty.player import Player
 from skaty.rules import (
     AbstractRuleSet,
     BiddingPhase,
@@ -31,7 +32,6 @@ from skaty.rules import (
 )
 from skaty.trick import Trick
 from skaty.game_state import GameState
-from itertools import combinations
 
 
 # All bid values possible per ISkO (Null values and grand/suit values multiplied with range of their possible multipliers).
@@ -264,80 +264,125 @@ class ISkO(AbstractRuleSet):
 
         return winner
 
-    # TODO: overbid games according to ISkO 3.6.1
-    def calculate_game_score(
-        self,
-        players: list[Player],
-        declarer: int,
-        points: dict[Player, int],
-        tricks: list[tuple[Trick, Player]],
-        game_type: GameType,
-        bid: int,
-        skat: tuple[Card, Card],
-        hand: bool = False,
-        schneider_announced: bool = False,
-        schwarz_announced: bool = False,
-        ouvert: bool = False,
-    ) -> int:
-        """
-        Calculate the game score according to Skat rules.
-        Returns positive score if declarer wins, negative if loses.
-        """
-        # Points
-        declarer_player = players[declarer]
-        declarer_points = points[declarer_player]
+    def calculate_game_score(self, state: GameState) -> list[int]:
+        scores = [0, 0, 0]
+        declarer = state.declarer_idx
+        bid = state.bid
+        game_type = state.game_type
 
-        tricks_scored = sum(1 for _, player in tricks if player == declarer_player)
-        # ISkO 2.5.5
-        is_schneider = declarer_points >= 90 or declarer_points <= 30
-        # ISkO 2.5.6
-        is_schwarz = tricks_scored == 0 or tricks_scored == 10
+        if game_type is GameType.PASS or state.phase is GamePhase.PASSED or bid is None:
+            raise InvalidGameStateError("A game has no score if it is passed.")
+        if declarer is None or state.declaration is None:
+            raise InvalidGameStateError(
+                "A game has no score if there is no declarer or declaration."
+            )
+        if len(state.trick_history) != 10 or state.phase != GamePhase.GAME_OVER:
+            raise InvalidGameStateError(
+                "A game has no score if it is not finished yet."
+            )
+
+        hand = state.declaration.hand
+        schneider_announced = state.declaration.schneider
+        schwarz_announced = state.declaration.schwarz
+        open = state.declaration.open
+
+        # Reconstruct the tricks
+        tricks_won_by_player = self.get_won_tricks(state)
+        declarer_tricks = tricks_won_by_player[declarer]
+
+        if state.game_type is GameType.NULL:
+            if hand and open:
+                game_value = 59
+            elif open:
+                game_value = 46
+            elif hand:
+                game_value = 35
+            else:
+                game_value = 23
+
+            won = len(declarer_tricks) == 0
+
+            if game_value < bid:
+                won = False
+
+            scores[declarer] = game_value if won else -2 * game_value
+            return scores
+
+        tops = state.tops
+        if tops is None:
+            raise InvalidGameStateError("No tops were saved during declaration.")
 
         base_value = game_type.value
+        declarer_points = (
+            sum(trick.get_trick_points() for trick in tricks_won_by_player[declarer])
+            + state.skat[0].points
+            + state.skat[1].points
+        )
+        opponents_points = 120 - declarer_points
 
-        if game_type is GameType.NULL:
-            # ISkO 2.4.2
-            if hand and ouvert:
-                base_value = 59
-            elif hand:
-                base_value = 35
-            elif ouvert:
-                base_value = 46
-            if tricks_scored > 0 or bid > base_value:
-                # Lost
-                base_value *= -2
-            return base_value
+        is_schneider = (opponents_points <= 30) or (declarer_points <= 30)
+        is_schwarz = len(declarer_tricks) == 0 or len(declarer_tricks) == 10
 
-        tops = self.tops(declarer_player.hand + list(skat), game_type)
         multiplier = 1 + tops
-        lost = declarer_points <= 60
         if hand:
-            multiplier += 1
-
-        if is_schneider:
-            multiplier += 1
-        if is_schwarz:
-            multiplier += 1
-        if ouvert:
             multiplier += 1
         if schneider_announced:
             multiplier += 1
+        if is_schneider:
+            multiplier += 1
         if schwarz_announced:
             multiplier += 1
+        if is_schwarz:
+            multiplier += 1
+        if open:
+            multiplier += 1
 
-        # Check if announcements are correct
-        if ouvert and not is_schwarz:
-            lost = True
+        game_value = multiplier * base_value
+
+        won = True
         if schwarz_announced and not is_schwarz:
-            lost = True
-        if schneider_announced and not is_schneider:
-            lost = True
-        if bid > multiplier * base_value:
-            lost = True
+            won = False
+        elif schneider_announced and not is_schneider:
+            won = False
+        elif declarer_points < 61:
+            won = False
 
-        if lost:
-            return -2 * multiplier * base_value
-        return multiplier * base_value
+        # Overbid
+        if game_value < bid:
+            won = False
+            multiplier = math.ceil(bid / base_value)
+            game_value = multiplier * base_value
+
+        if won:
+            scores[declarer] = game_value
+        else:
+            scores[declarer] = -2 * game_value
+        return scores
+
+    def get_won_tricks(self, state: GameState) -> list[list[Trick]]:
+        """
+        Reconstructs the tricks won by each player.
+
+        Returns:
+            A list of length 3. The index corresponds to player_idx. The value at the index if a list of tricks that this player won.
+        """
+        tricks_won: list[list[Trick]] = [[], [], []]
+
+        if state.declaration is None or state.declaration.game_type is GameType.PASS:
+            return tricks_won
+
+        game_type = state.game_type
+        current_leader = state._forehand
+
+        for trick in state.trick_history:
+            cards = trick.cards
+            winner_offset = self.determine_trick_winner(cards, game_type)
+            winner_idx = (current_leader + winner_offset) % 3
+
+            tricks_won[winner_idx].append(trick)
+            current_leader = winner_idx
+
+        return tricks_won
 
     def is_valid_action_during_phase(
         self,
@@ -635,6 +680,8 @@ class ISkO(AbstractRuleSet):
                 )
                 state.active_player = state._forehand
                 state.game_type = game_type
+                if game_type not in (GameType.PASS, GameType.NULL):
+                    state.tops = self.tops(state.hands[player_idx], game_type)
             case PlayCard():
                 return self.advance_playing(state, action)
 

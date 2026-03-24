@@ -77,6 +77,7 @@ class GameState:
         self.bid: Optional[int] = None
         self.bidding_phase: BiddingPhase = BiddingPhase.ForehandMiddlehand
 
+        self.tops: Optional[int] = None
         self.hand_available = True
         self.declarer_idx: Optional[PlayerIdx] = None
         self.declaration: Optional[GameDeclaration] = None

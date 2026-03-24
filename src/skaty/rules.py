@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from skaty.game_state import GameState
 
 from skaty.cards import Card, Suit
-from skaty.player import Player
 
 
 class GamePhase(Enum):
@@ -88,20 +87,14 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def calculate_game_score(
-        self,
-        players: list[Player],
-        declarer: int,
-        points: dict[Player, int],
-        tricks: list[tuple[Trick, Player]],
-        game_type: GameType,
-        bid: int,
-        skat: tuple[Card, Card],
-        hand: bool = False,
-        schneider_announced: bool = False,
-        schwarz_announced: bool = False,
-        ouvert: bool = False,
-    ) -> int:
+    def calculate_game_score(self, state: GameState) -> list[int]:
+        """
+        Attempt to calculate the game score in state.
+        Returns a list with points (positive or negative) for each player with indexes corresponding to the state's players.
+
+        Raises:
+            InvalidGameStateError: If there is no game score in the current state.
+        """
         pass
 
     @abstractmethod

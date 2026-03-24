@@ -167,6 +167,7 @@ class DeclareGame(Action):
             "phase": state.phase,
             "declaration": state.declaration,
             "game_type": state.game_type,
+            "tops": state.tops,
         }
 
         rule_set.advance_state(state, self)
@@ -176,6 +177,7 @@ class DeclareGame(Action):
         state.declaration = self._memory["declaration"]
         state.active_player = self._memory["active_player"]
         state.game_type = self._memory["game_type"]
+        state.tops = self._memory["tops"]
 
 
 @dataclass

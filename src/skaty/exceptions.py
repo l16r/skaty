@@ -16,20 +16,8 @@ class NoHigherBidPossible(SkatyError):
     """Raised when no higher bid is possible according to the rules."""
 
 
-class InvalidBidError(SkatyError):
-    """Raised when an illegal bid is made."""
-
-
 class InvalidActionError(SkatyError):
     """Raised when an illegal action is tried (e.g. acting when not being the active player)."""
-
-
-class InvalidDeclarationError(InvalidActionError):
-    """Raised when a declaration violates the rules."""
-
-
-class InvalidPlayError(InvalidActionError):
-    """Raised when an illegal move is attempted (e.g. not following suit)."""
 
 
 class NoCardsError(SkatyError):
