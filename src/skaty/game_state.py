@@ -93,12 +93,8 @@ class GameState:
 
         return cls(rule_set, dealer_idx, hands, skat, log)
 
-    # TODO: implement
-    def calculate_game_score(self) -> int:
-        """
-        Calculates the points a player gained or lost according to his declaration.
-        """
-        pass
+    def calculate_game_score(self) -> list[int]:
+        return self._rule_set.calculate_game_score(self)
 
     def apply_action(self, action: Action, check_validity: bool = True) -> None:
         """
