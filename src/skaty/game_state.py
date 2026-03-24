@@ -155,6 +155,14 @@ class GameState:
             [action.player_idx for action in self.all_bids if isinstance(action, Pass)]
         )
 
+    @property
+    def get_first_card_in_current_trick(self) -> Optional[Card]:
+        if len(self.trick_history) == 0:
+            return None
+
+        current_trick = self.trick_history[-1]
+        return current_trick.first_card
+
     def get_player_position(self, player_idx: PlayerIdx) -> PlayerPosition:
         if player_idx == self._forehand:
             return PlayerPosition.FOREHAND

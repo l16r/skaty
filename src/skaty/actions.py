@@ -259,6 +259,37 @@ class PlayCard(Action):
 
     card: Card
 
+    def is_valid(self, state: GameState, ruleset: AbstractRuleSet) -> bool:
+        if not super().is_valid(state, ruleset):
+            return False
+
+        return ruleset.is_valid_card_play(
+            state.hands[state.active_player],
+            self.card,
+            state.get_first_card_in_current_trick,
+            state.game_type,
+        )
+
+    def apply(self, state: GameState, ruleset: AbstractRuleSet) -> None:
+        self._memory = {
+            "active_player": state.active_player,
+            "points": state.points.copy(),
+            "current_trick": state.current_trick,
+            "trick_history": state.trick_history.copy(),
+            "phase": state.phase,
+        }
+        state.hands[self.player_idx].remove(self.card)
+
+        ruleset.advance_playing(state, self)
+
+    def undo(self, state: GameState) -> None:
+        state.hands[self.player_idx].append(self.card)
+        state.active_player = self._memory["active_player"]
+        state.points = self._memory["points"]
+        state.current_trick = self._memory["current_trick"]
+        state.trick_history = self._memory["trick_history"]
+        state.phase = self._memory["phase"]
+
 
 @dataclass
 class GiveUp(Action):

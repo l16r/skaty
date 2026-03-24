@@ -143,8 +143,14 @@ class ISkO(AbstractRuleSet):
         trump = self.trump_suit(game_type)
         return (card.suit is trump) or (card.rank is Rank.JACK)
 
-    def has_trump(self, player: Player, game_type: GameType) -> bool:
-        for card in player.hand:
+    def has_suit(self, hand: list[Card], suit: Suit) -> bool:
+        for card in hand:
+            if card.suit == suit:
+                return True
+        return False
+
+    def has_trump(self, hand: list[Card], game_type: GameType) -> bool:
+        for card in hand:
             if self.is_card_trump(card, game_type):
                 return True
         return False
@@ -433,7 +439,7 @@ class ISkO(AbstractRuleSet):
 
     def is_valid_card_play(
         self,
-        player: Player,
+        hand: list[Card],
         card: Card,
         first_card: Optional[Card],
         game_type: GameType,
@@ -442,7 +448,7 @@ class ISkO(AbstractRuleSet):
         Determines if player can play card in a trick started with first_card in some GameType. For an empty trick, first_card is None. If game_type is GameType.PASS always returns False regardless of card and first_card.
         """
         # Player can not play card not available
-        if card not in player.hand:
+        if card not in hand:
             return False
 
         # No card can be played if game is passed.
@@ -454,12 +460,12 @@ class ISkO(AbstractRuleSet):
 
         # If player has trump, he must follow
         if self.is_card_trump(first_card, game_type) and self.has_trump(
-            player, game_type
+            hand, game_type
         ):
             return self.is_card_trump(card, game_type)
 
         # If player has suit, he must follow
-        if player.has_suit(first_card.suit):
+        if self.has_suit(hand, first_card.suit):
             return card.suit is first_card.suit
 
         # Otherwise, any card is valid
@@ -533,10 +539,13 @@ class ISkO(AbstractRuleSet):
     def get_valid_actions(self, state: GameState, player_idx: int) -> list[Action]:
         return []
 
-    def advance_bidding(self, state: GameState, action: Action) -> None:
+    def advance_bidding(
+        self, state: GameState, action: DeclareBid | Listen | Pass
+    ) -> None:
         """
         Mutate the state in bidding dependent on action.
         Might modify:
+
         - state.active_player
         - state.bidding_phase
         - state.phase
@@ -604,3 +613,37 @@ class ISkO(AbstractRuleSet):
 
         elif isinstance(action, (Listen, DeclareBid)):
             state.active_player = other_player
+
+    def advance_playing(self, state: GameState, action: PlayCard) -> None:
+        """
+        Mutate the state as card is played.
+        Might modify:
+
+        - state.active_player
+        - state.phase
+        - state.current_trick
+        - state.trick_history
+        - state.points
+        """
+        state.current_trick.add_card(action.card)
+        if state.current_trick.is_complete():
+            points = state.current_trick.get_trick_points()
+            # Index of winner in trick order
+            winner_offset = state.current_trick.get_winner(self, state.game_type)
+
+            current_player = state.active_player
+            first_player = (current_player - 2) % 3
+            winner = (first_player + winner_offset) % 3
+            state.points[winner] += points
+
+            state.trick_history.append(state.current_trick)
+            # Reset trick
+            state.current_trick = Trick()
+            if len(state.trick_history) == 10:
+                state.phase = GamePhase.GAME_OVER
+                return
+
+            # Winner of trick starts next trick
+            state.active_player = winner
+        else:
+            state.active_player = (state.active_player + 1) % 3

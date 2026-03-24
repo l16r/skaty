@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 # Import in this condition to avoid circular imports.
 if TYPE_CHECKING:
     from skaty.trick import Trick
-    from skaty.actions import Action, DeclareBid, Listen, Pass
+    from skaty.actions import Action, DeclareBid, Listen, Pass, PlayCard
     from skaty.game_state import GameState
 
 from skaty.cards import Card, Suit
@@ -131,7 +131,7 @@ class AbstractRuleSet(ABC):
     @abstractmethod
     def is_valid_card_play(
         self,
-        player: Player,
+        hand: list[Card],
         card: Card,
         first_card: Optional[Card],
         game_type: GameType,
@@ -149,7 +149,15 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def advance_bidding(self, state: GameState, action: Action) -> None:
+    def advance_bidding(
+        self, state: GameState, action: DeclareBid | Listen | Pass
+    ) -> None:
         """
         Mutate the state in bidding dependent on action.
+        """
+
+    @abstractmethod
+    def advance_playing(self, state: GameState, action: PlayCard) -> None:
+        """
+        Mutate the state as card is played.
         """

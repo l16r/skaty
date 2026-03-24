@@ -226,7 +226,7 @@ class IsValidCardPlayTestCase:
 )
 def test_is_valid_card_play(case: IsValidCardPlayTestCase):
     assert case.expected_result == isko.is_valid_card_play(
-        Player("test", hand=case.hand), case.play_card, case.first_card, case.game_type
+        case.hand, case.play_card, case.first_card, case.game_type
     )
 
 
