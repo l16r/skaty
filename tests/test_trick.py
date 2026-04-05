@@ -5,8 +5,7 @@ from skaty.exceptions import (
     TrickFinishedError,
     TrickNotFinishedError,
 )
-from skaty.isko import ISkO
-from skaty.rules import GameType
+from skaty.isko.rules import ISkO, ISkOGameTypes
 from skaty.trick import Trick
 
 
@@ -87,4 +86,4 @@ def test_cannot_add_to_finished_trick():
 def test_trick_get_winner():
     t = Trick()
     with pytest.raises(TrickNotFinishedError):
-        t.get_winner(ISkO(), GameType.DIAMONDS)
+        t.get_winner(ISkO(), ISkOGameTypes.DIAMONDS)

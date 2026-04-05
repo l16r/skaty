@@ -1,17 +1,18 @@
-from typing import Generator, Optional
+from typing import Generator, Optional, Self
 
-from skaty.actions import Action, DeclareBid, Listen, Pass, PlayerIdx
 from skaty.cards import Card, create_deck, shuffle_deck
 from skaty.exceptions import (
     InvalidGameStateError,
 )
 from skaty.rules import (
     AbstractRuleSet,
-    BiddingPhase,
+    Action,
     GamePhase,
+    GamePhases,
     GameType,
+    GameTypes,
+    PlayerIdx,
     PlayerPosition,
-    GameDeclaration,
 )
 from skaty.trick import Trick
 
@@ -19,7 +20,7 @@ from skaty.trick import Trick
 class GameState:
     def __init__(
         self,
-        rule_set: AbstractRuleSet,
+        rule_set: AbstractRuleSet["GameState"],
         dealer_idx: PlayerIdx,
         hands: list[list[Card]],
         skat: list[Card],
@@ -40,8 +41,8 @@ class GameState:
         """
         self._rule_set = rule_set
         self._log = log
-        self.phase: GamePhase = GamePhase.BID
-        self.game_type: GameType = GameType.PASS
+        self.phase: GamePhase = GamePhases.BID
+        self.game_type: GameType = GameTypes.PASS
 
         if dealer_idx < 0 or dealer_idx > 2:
             raise InvalidGameStateError(
@@ -75,17 +76,16 @@ class GameState:
         self.action_history: list[Action] = []
 
         self.bid: Optional[int] = None
-        self.bidding_phase: BiddingPhase = BiddingPhase.ForehandMiddlehand
-
         self.tops: Optional[int] = None
         self.hand_available = True
         self.declarer_idx: Optional[PlayerIdx] = None
-        self.declaration: Optional[GameDeclaration] = None
+
+        self._rule_set.initialize_state(self)
 
     @classmethod
     def from_random_deal(
         cls, rule_set: AbstractRuleSet, dealer_idx: PlayerIdx, log: bool = False
-    ) -> "GameState":
+    ) -> Self:
         """Creates a game with a randomized deck."""
         deck = shuffle_deck(create_deck())
         hands = [deck[0:10], deck[10:20], deck[20:30]]
@@ -132,23 +132,6 @@ class GameState:
         All valid actions for a given player in current state.
         """
         return self._rule_set.get_valid_actions(self, player_idx)
-
-    @property
-    def all_bids(self) -> list[DeclareBid | Listen | Pass]:
-        """
-        Returns all previously made bids in order.
-        """
-        return [
-            action
-            for action in self.action_history
-            if isinstance(action, (DeclareBid, Listen, Pass))
-        ]
-
-    @property
-    def number_of_passes(self) -> int:
-        return len(
-            [action.player_idx for action in self.all_bids if isinstance(action, Pass)]
-        )
 
     def get_player_position(self, player_idx: PlayerIdx) -> PlayerPosition:
         if player_idx == self._forehand:

@@ -2,10 +2,10 @@ import pytest
 from dataclasses import dataclass
 from unittest.mock import MagicMock, patch
 
-from skaty.rules import GameType, GamePhase
+from skaty.isko.rules import ISkO, ISkOGameTypes
+from skaty.rules import GamePhases, GameType
 from skaty.game_state import GameState, InvalidGameStateError
 from skaty.trick import Trick
-from skaty.isko import ISkO
 
 
 @dataclass
@@ -28,13 +28,13 @@ class ScoreTestCase:
 @pytest.fixture
 def base_state():
     state = MagicMock(spec=GameState)
-    state.phase = GamePhase.GAME_OVER
+    state.phase = GamePhases.GAME_OVER
     state.declarer_idx = 0
     state.trick_history = [MagicMock() for _ in range(10)]
     state.declaration = MagicMock()
     state.skat = [MagicMock(), MagicMock()]
     state.bid = 18
-    state.game_type = GameType.CLUBS
+    state.game_type = ISkOGameTypes.CLUBS
     return state
 
 
@@ -46,7 +46,7 @@ def ruleset():
 TEST_CASES = [
     ScoreTestCase(
         id="null_won",
-        game_type=GameType.NULL,
+        game_type=ISkOGameTypes.NULL,
         bid=23,
         tops=0,
         declarer_tricks_count=0,
@@ -56,7 +56,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="null_lost",
-        game_type=GameType.NULL,
+        game_type=ISkOGameTypes.NULL,
         bid=23,
         tops=0,
         declarer_tricks_count=1,
@@ -66,7 +66,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="null_hand_ouvert_won",
-        game_type=GameType.NULL,
+        game_type=ISkOGameTypes.NULL,
         bid=59,
         tops=0,
         hand=True,
@@ -78,7 +78,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="null_overbid",
-        game_type=GameType.NULL,
+        game_type=ISkOGameTypes.NULL,
         bid=35,
         tops=0,
         declarer_tricks_count=0,
@@ -88,7 +88,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="suit_simple_won",
-        game_type=GameType.CLUBS,
+        game_type=ISkOGameTypes.CLUBS,
         bid=18,
         tops=1,
         declarer_tricks_count=6,
@@ -98,7 +98,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="grand_hand_schneider_schwarz_ouvert_won",
-        game_type=GameType.GRAND,
+        game_type=ISkOGameTypes.GRAND,
         bid=48,
         tops=4,
         hand=True,
@@ -112,7 +112,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="skat_points_make_it_won",
-        game_type=GameType.HEARTS,
+        game_type=ISkOGameTypes.HEARTS,
         bid=18,
         tops=1,
         declarer_tricks_count=5,
@@ -122,7 +122,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="suit_schneider_played_not_announced",
-        game_type=GameType.SPADES,
+        game_type=ISkOGameTypes.SPADES,
         bid=18,
         tops=2,
         declarer_tricks_count=8,
@@ -132,7 +132,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="suit_schwarz_played_not_announced",
-        game_type=GameType.DIAMONDS,
+        game_type=ISkOGameTypes.DIAMONDS,
         bid=18,
         tops=1,
         declarer_tricks_count=10,
@@ -142,7 +142,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="suit_schneider_announced_but_failed",
-        game_type=GameType.HEARTS,
+        game_type=ISkOGameTypes.HEARTS,
         bid=18,
         tops=2,
         hand=True,
@@ -154,7 +154,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="suit_simple_lost",
-        game_type=GameType.CLUBS,
+        game_type=ISkOGameTypes.CLUBS,
         bid=18,
         tops=1,
         declarer_tricks_count=5,
@@ -164,7 +164,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="suit_overbid_lost_mult_adjusted",
-        game_type=GameType.CLUBS,
+        game_type=ISkOGameTypes.CLUBS,
         bid=48,
         tops=1,
         declarer_tricks_count=6,
@@ -174,7 +174,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="suit_overbid_saved_by_gameplay",
-        game_type=GameType.SPADES,
+        game_type=ISkOGameTypes.SPADES,
         bid=33,
         tops=1,
         declarer_tricks_count=8,
@@ -184,7 +184,7 @@ TEST_CASES = [
     ),
     ScoreTestCase(
         id="lost_schwarz_against_declarer",
-        game_type=GameType.GRAND,
+        game_type=ISkOGameTypes.GRAND,
         bid=18,
         tops=1,
         declarer_tricks_count=0,
@@ -227,19 +227,19 @@ def test_calculate_game_score(case: ScoreTestCase, base_state, ruleset):
 
 
 def test_calculate_game_score_raises_on_invalid_phase(base_state, ruleset):
-    base_state.phase = GamePhase.PLAYING
+    base_state.phase = GamePhases.PLAYING
     with pytest.raises(InvalidGameStateError):
         ruleset.calculate_game_score(base_state)
 
 
 def test_calculate_game_score_raises_on_passed_game(base_state, ruleset):
-    base_state.game_type = GameType.PASS
+    base_state.game_type = ISkOGameTypes.PASS
     with pytest.raises(InvalidGameStateError):
         ruleset.calculate_game_score(base_state)
 
 
 def test_calculate_game_score_raises_on_missing_tops(base_state, ruleset):
-    base_state.game_type = GameType.CLUBS
+    base_state.game_type = ISkOGameTypes.CLUBS
     base_state.tops = None
 
     # Built-in patch als Context Manager

@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 import random
 from typing import Any, ContextManager, Optional
 import pytest
-from skaty.actions import DeclareBid, Listen, Pass, PlayerIdx
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import (
     InvalidGameTypeError,
@@ -12,12 +11,15 @@ from skaty.exceptions import (
     TrickNotFinishedError,
 )
 from skaty.game_state import GameState
-from skaty.isko import ISkO
+from skaty.isko.actions import DeclareBid, Listen, Pass
+from skaty.isko.rules import BiddingPhase, ISkO, ISkOGameTypes
+from skaty.isko.state import GameDeclaration, ISkOGameState
 from skaty.rules import (
-    BiddingPhase,
-    GameDeclaration,
     GamePhase,
+    GamePhases,
     GameType,
+    GameTypes,
+    PlayerIdx,
     PlayerPosition,
 )
 
@@ -32,62 +34,64 @@ hand_without_four = [Card(Rank.ACE, Suit.DIAMONDS)]
 
 def test_get_card_effective_rank_value():
     test_data = [
-        (GameType.CLUBS, Card(Rank.JACK, Suit.CLUBS), 103),
-        (GameType.CLUBS, Card(Rank.JACK, Suit.SPADES), 102),
-        (GameType.CLUBS, Card(Rank.JACK, Suit.HEARTS), 101),
-        (GameType.CLUBS, Card(Rank.JACK, Suit.DIAMONDS), 100),
-        (GameType.CLUBS, Card(Rank.ACE, Suit.CLUBS), 57),
-        (GameType.CLUBS, Card(Rank.TEN, Suit.CLUBS), 56),
-        (GameType.CLUBS, Card(Rank.KING, Suit.CLUBS), 55),
-        (GameType.CLUBS, Card(Rank.QUEEN, Suit.CLUBS), 54),
-        (GameType.CLUBS, Card(Rank.NINE, Suit.CLUBS), 53),
-        (GameType.CLUBS, Card(Rank.EIGHT, Suit.CLUBS), 52),
-        (GameType.CLUBS, Card(Rank.SEVEN, Suit.CLUBS), 51),
-        (GameType.CLUBS, Card(Rank.ACE, Suit.HEARTS), 7),
-        (GameType.CLUBS, Card(Rank.TEN, Suit.DIAMONDS), 6),
-        (GameType.CLUBS, Card(Rank.KING, Suit.SPADES), 5),
-        (GameType.CLUBS, Card(Rank.QUEEN, Suit.HEARTS), 4),
-        (GameType.CLUBS, Card(Rank.NINE, Suit.HEARTS), 3),
-        (GameType.CLUBS, Card(Rank.EIGHT, Suit.SPADES), 2),
-        (GameType.CLUBS, Card(Rank.SEVEN, Suit.HEARTS), 1),
+        (ISkOGameTypes.CLUBS, Card(Rank.JACK, Suit.CLUBS), 103),
+        (ISkOGameTypes.CLUBS, Card(Rank.JACK, Suit.SPADES), 102),
+        (ISkOGameTypes.CLUBS, Card(Rank.JACK, Suit.HEARTS), 101),
+        (ISkOGameTypes.CLUBS, Card(Rank.JACK, Suit.DIAMONDS), 100),
+        (ISkOGameTypes.CLUBS, Card(Rank.ACE, Suit.CLUBS), 57),
+        (ISkOGameTypes.CLUBS, Card(Rank.TEN, Suit.CLUBS), 56),
+        (ISkOGameTypes.CLUBS, Card(Rank.KING, Suit.CLUBS), 55),
+        (ISkOGameTypes.CLUBS, Card(Rank.QUEEN, Suit.CLUBS), 54),
+        (ISkOGameTypes.CLUBS, Card(Rank.NINE, Suit.CLUBS), 53),
+        (ISkOGameTypes.CLUBS, Card(Rank.EIGHT, Suit.CLUBS), 52),
+        (ISkOGameTypes.CLUBS, Card(Rank.SEVEN, Suit.CLUBS), 51),
+        (ISkOGameTypes.CLUBS, Card(Rank.ACE, Suit.HEARTS), 7),
+        (ISkOGameTypes.CLUBS, Card(Rank.TEN, Suit.DIAMONDS), 6),
+        (ISkOGameTypes.CLUBS, Card(Rank.KING, Suit.SPADES), 5),
+        (ISkOGameTypes.CLUBS, Card(Rank.QUEEN, Suit.HEARTS), 4),
+        (ISkOGameTypes.CLUBS, Card(Rank.NINE, Suit.HEARTS), 3),
+        (ISkOGameTypes.CLUBS, Card(Rank.EIGHT, Suit.SPADES), 2),
+        (ISkOGameTypes.CLUBS, Card(Rank.SEVEN, Suit.HEARTS), 1),
         #
-        (GameType.NULL, Card(Rank.JACK, Suit.CLUBS), 11),
-        (GameType.NULL, Card(Rank.JACK, Suit.SPADES), 11),
-        (GameType.NULL, Card(Rank.JACK, Suit.HEARTS), 11),
-        (GameType.NULL, Card(Rank.JACK, Suit.DIAMONDS), 11),
-        (GameType.NULL, Card(Rank.ACE, Suit.CLUBS), 14),
-        (GameType.NULL, Card(Rank.TEN, Suit.CLUBS), 10),
-        (GameType.NULL, Card(Rank.KING, Suit.CLUBS), 13),
-        (GameType.NULL, Card(Rank.QUEEN, Suit.CLUBS), 12),
-        (GameType.NULL, Card(Rank.NINE, Suit.CLUBS), 9),
-        (GameType.NULL, Card(Rank.EIGHT, Suit.CLUBS), 8),
-        (GameType.NULL, Card(Rank.SEVEN, Suit.CLUBS), 7),
-        (GameType.NULL, Card(Rank.ACE, Suit.HEARTS), 14),
-        (GameType.NULL, Card(Rank.TEN, Suit.DIAMONDS), 10),
-        (GameType.NULL, Card(Rank.KING, Suit.SPADES), 13),
-        (GameType.NULL, Card(Rank.QUEEN, Suit.HEARTS), 12),
-        (GameType.NULL, Card(Rank.NINE, Suit.HEARTS), 9),
-        (GameType.NULL, Card(Rank.EIGHT, Suit.SPADES), 8),
-        (GameType.NULL, Card(Rank.SEVEN, Suit.HEARTS), 7),
+        (ISkOGameTypes.NULL, Card(Rank.JACK, Suit.CLUBS), 11),
+        (ISkOGameTypes.NULL, Card(Rank.JACK, Suit.SPADES), 11),
+        (ISkOGameTypes.NULL, Card(Rank.JACK, Suit.HEARTS), 11),
+        (ISkOGameTypes.NULL, Card(Rank.JACK, Suit.DIAMONDS), 11),
+        (ISkOGameTypes.NULL, Card(Rank.ACE, Suit.CLUBS), 14),
+        (ISkOGameTypes.NULL, Card(Rank.TEN, Suit.CLUBS), 10),
+        (ISkOGameTypes.NULL, Card(Rank.KING, Suit.CLUBS), 13),
+        (ISkOGameTypes.NULL, Card(Rank.QUEEN, Suit.CLUBS), 12),
+        (ISkOGameTypes.NULL, Card(Rank.NINE, Suit.CLUBS), 9),
+        (ISkOGameTypes.NULL, Card(Rank.EIGHT, Suit.CLUBS), 8),
+        (ISkOGameTypes.NULL, Card(Rank.SEVEN, Suit.CLUBS), 7),
+        (ISkOGameTypes.NULL, Card(Rank.ACE, Suit.HEARTS), 14),
+        (ISkOGameTypes.NULL, Card(Rank.TEN, Suit.DIAMONDS), 10),
+        (ISkOGameTypes.NULL, Card(Rank.KING, Suit.SPADES), 13),
+        (ISkOGameTypes.NULL, Card(Rank.QUEEN, Suit.HEARTS), 12),
+        (ISkOGameTypes.NULL, Card(Rank.NINE, Suit.HEARTS), 9),
+        (ISkOGameTypes.NULL, Card(Rank.EIGHT, Suit.SPADES), 8),
+        (ISkOGameTypes.NULL, Card(Rank.SEVEN, Suit.HEARTS), 7),
         #
-        (GameType.GRAND, Card(Rank.JACK, Suit.CLUBS), 103),
-        (GameType.GRAND, Card(Rank.JACK, Suit.SPADES), 102),
-        (GameType.GRAND, Card(Rank.JACK, Suit.HEARTS), 101),
-        (GameType.GRAND, Card(Rank.JACK, Suit.DIAMONDS), 100),
-        (GameType.GRAND, Card(Rank.ACE, Suit.HEARTS), 7),
-        (GameType.GRAND, Card(Rank.TEN, Suit.DIAMONDS), 6),
-        (GameType.GRAND, Card(Rank.KING, Suit.SPADES), 5),
-        (GameType.GRAND, Card(Rank.QUEEN, Suit.HEARTS), 4),
-        (GameType.GRAND, Card(Rank.NINE, Suit.HEARTS), 3),
-        (GameType.GRAND, Card(Rank.EIGHT, Suit.SPADES), 2),
-        (GameType.GRAND, Card(Rank.SEVEN, Suit.HEARTS), 1),
+        (ISkOGameTypes.GRAND, Card(Rank.JACK, Suit.CLUBS), 103),
+        (ISkOGameTypes.GRAND, Card(Rank.JACK, Suit.SPADES), 102),
+        (ISkOGameTypes.GRAND, Card(Rank.JACK, Suit.HEARTS), 101),
+        (ISkOGameTypes.GRAND, Card(Rank.JACK, Suit.DIAMONDS), 100),
+        (ISkOGameTypes.GRAND, Card(Rank.ACE, Suit.HEARTS), 7),
+        (ISkOGameTypes.GRAND, Card(Rank.TEN, Suit.DIAMONDS), 6),
+        (ISkOGameTypes.GRAND, Card(Rank.KING, Suit.SPADES), 5),
+        (ISkOGameTypes.GRAND, Card(Rank.QUEEN, Suit.HEARTS), 4),
+        (ISkOGameTypes.GRAND, Card(Rank.NINE, Suit.HEARTS), 3),
+        (ISkOGameTypes.GRAND, Card(Rank.EIGHT, Suit.SPADES), 2),
+        (ISkOGameTypes.GRAND, Card(Rank.SEVEN, Suit.HEARTS), 1),
     ]
 
     for test in test_data:
         assert isko.get_card_effective_rank_value(test[1], test[0]) == test[2]
 
     with pytest.raises(InvalidGameTypeError):
-        isko.get_card_effective_rank_value(Card(Rank.ACE, Suit.DIAMONDS), GameType.PASS)
+        isko.get_card_effective_rank_value(
+            Card(Rank.ACE, Suit.DIAMONDS), GameTypes.PASS
+        )
 
 
 @dataclass
@@ -105,34 +109,34 @@ class IsValidCardPlayTestCase:
     [
         IsValidCardPlayTestCase(
             id="card_not_in_hand",
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             hand=[Card(Rank.ACE, Suit.DIAMONDS)],
             play_card=Card(Rank.KING, Suit.DIAMONDS),
             expected_result=False,
         ),
         IsValidCardPlayTestCase(
             id="pass",
-            game_type=GameType.PASS,
+            game_type=ISkOGameTypes.PASS,
             hand=[Card(Rank.ACE, Suit.DIAMONDS)],
             play_card=Card(Rank.ACE, Suit.DIAMONDS),
             expected_result=False,
         ),
         IsValidCardPlayTestCase(
             id="no_first_card",
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             hand=[Card(Rank.ACE, Suit.DIAMONDS)],
             play_card=Card(Rank.ACE, Suit.DIAMONDS),
         ),
         IsValidCardPlayTestCase(
             id="following_trump",
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             hand=[Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
             play_card=Card(Rank.JACK, Suit.HEARTS),
             first_card=Card(Rank.KING, Suit.DIAMONDS),
         ),
         IsValidCardPlayTestCase(
             id="not_following_trump",
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             hand=[Card(Rank.JACK, Suit.HEARTS), Card(Rank.SEVEN, Suit.SPADES)],
             play_card=Card(Rank.SEVEN, Suit.SPADES),
             first_card=Card(Rank.KING, Suit.DIAMONDS),
@@ -140,14 +144,14 @@ class IsValidCardPlayTestCase:
         ),
         IsValidCardPlayTestCase(
             id="following_suit",
-            game_type=GameType.SPADES,
+            game_type=ISkOGameTypes.SPADES,
             hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
             play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
             first_card=Card(Rank.KING, Suit.DIAMONDS),
         ),
         IsValidCardPlayTestCase(
             id="not_following_suit",
-            game_type=GameType.SPADES,
+            game_type=ISkOGameTypes.SPADES,
             hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
             play_card=Card(Rank.SEVEN, Suit.SPADES),
             first_card=Card(Rank.KING, Suit.DIAMONDS),
@@ -155,21 +159,21 @@ class IsValidCardPlayTestCase:
         ),
         IsValidCardPlayTestCase(
             id="cannot_follow_suit",
-            game_type=GameType.SPADES,
+            game_type=ISkOGameTypes.SPADES,
             hand=[Card(Rank.SEVEN, Suit.SPADES)],
             play_card=Card(Rank.SEVEN, Suit.SPADES),
             first_card=Card(Rank.SEVEN, Suit.DIAMONDS),
         ),
         IsValidCardPlayTestCase(
             id="null_follow_suit",
-            game_type=GameType.NULL,
+            game_type=ISkOGameTypes.NULL,
             hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
             play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
             first_card=Card(Rank.KING, Suit.DIAMONDS),
         ),
         IsValidCardPlayTestCase(
             id="null_not_follow_suit",
-            game_type=GameType.NULL,
+            game_type=ISkOGameTypes.NULL,
             hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
             play_card=Card(Rank.SEVEN, Suit.SPADES),
             first_card=Card(Rank.KING, Suit.DIAMONDS),
@@ -177,14 +181,14 @@ class IsValidCardPlayTestCase:
         ),
         IsValidCardPlayTestCase(
             id="null_cannot_follow_suit",
-            game_type=GameType.NULL,
+            game_type=ISkOGameTypes.NULL,
             hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.SEVEN, Suit.SPADES)],
             play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
             first_card=Card(Rank.KING, Suit.CLUBS),
         ),
         IsValidCardPlayTestCase(
             id="grand_follow_trump_1",
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.JACK, Suit.DIAMONDS)],
             play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
             first_card=Card(Rank.JACK, Suit.HEARTS),
@@ -192,28 +196,28 @@ class IsValidCardPlayTestCase:
         ),
         IsValidCardPlayTestCase(
             id="grand_follow_trump_2",
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             hand=[Card(Rank.SEVEN, Suit.DIAMONDS), Card(Rank.JACK, Suit.DIAMONDS)],
             play_card=Card(Rank.JACK, Suit.DIAMONDS),
             first_card=Card(Rank.JACK, Suit.HEARTS),
         ),
         IsValidCardPlayTestCase(
             id="grand_cannot_follow_trump",
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             hand=[Card(Rank.SEVEN, Suit.DIAMONDS)],
             play_card=Card(Rank.SEVEN, Suit.DIAMONDS),
             first_card=Card(Rank.JACK, Suit.HEARTS),
         ),
         IsValidCardPlayTestCase(
             id="grand_follow_suit_1",
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             hand=[Card(Rank.SEVEN, Suit.HEARTS), Card(Rank.JACK, Suit.DIAMONDS)],
             play_card=Card(Rank.SEVEN, Suit.HEARTS),
             first_card=Card(Rank.EIGHT, Suit.HEARTS),
         ),
         IsValidCardPlayTestCase(
             id="grand_follow_suit_2",
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             hand=[Card(Rank.SEVEN, Suit.HEARTS), Card(Rank.JACK, Suit.DIAMONDS)],
             play_card=Card(Rank.JACK, Suit.DIAMONDS),
             first_card=Card(Rank.EIGHT, Suit.HEARTS),
@@ -245,32 +249,32 @@ class GameDeclarationTestCase:
     "case",
     [
         GameDeclarationTestCase(
-            id="pass_invalid", type=GameType.PASS, expected_result=False
+            id="pass_invalid", type=ISkOGameTypes.PASS, expected_result=False
         ),
         GameDeclarationTestCase(
             id="null_cannot_be_schneider",
-            type=GameType.NULL,
+            type=ISkOGameTypes.NULL,
             hand=True,
             schneider=True,
             expected_result=False,
         ),
         GameDeclarationTestCase(
             id="null_cannot_be_schwarz",
-            type=GameType.NULL,
+            type=ISkOGameTypes.NULL,
             hand=True,
             schwarz=True,
             expected_result=False,
         ),
         GameDeclarationTestCase(
             id="schneider_requires_hand",
-            type=GameType.DIAMONDS,
+            type=ISkOGameTypes.DIAMONDS,
             hand=False,
             schneider=True,
             expected_result=False,
         ),
         GameDeclarationTestCase(
             id="schwarz_requires_hand",
-            type=GameType.DIAMONDS,
+            type=ISkOGameTypes.DIAMONDS,
             hand=False,
             schneider=True,
             schwarz=True,
@@ -278,7 +282,7 @@ class GameDeclarationTestCase:
         ),
         GameDeclarationTestCase(
             id="open_requires_hand",
-            type=GameType.DIAMONDS,
+            type=ISkOGameTypes.DIAMONDS,
             hand=False,
             schneider=True,
             schwarz=True,
@@ -287,7 +291,7 @@ class GameDeclarationTestCase:
         ),
         GameDeclarationTestCase(
             id="schwarz_requires_schneider",
-            type=GameType.DIAMONDS,
+            type=ISkOGameTypes.DIAMONDS,
             hand=True,
             schneider=False,
             schwarz=True,
@@ -295,7 +299,7 @@ class GameDeclarationTestCase:
         ),
         GameDeclarationTestCase(
             id="open_requires_schneider",
-            type=GameType.DIAMONDS,
+            type=ISkOGameTypes.DIAMONDS,
             hand=True,
             schneider=False,
             schwarz=True,
@@ -304,7 +308,7 @@ class GameDeclarationTestCase:
         ),
         GameDeclarationTestCase(
             id="open_requires_schwarz",
-            type=GameType.DIAMONDS,
+            type=ISkOGameTypes.DIAMONDS,
             hand=True,
             schneider=True,
             schwarz=False,
@@ -313,7 +317,7 @@ class GameDeclarationTestCase:
         ),
         GameDeclarationTestCase(
             id="correct_open",
-            type=GameType.DIAMONDS,
+            type=ISkOGameTypes.DIAMONDS,
             hand=True,
             schneider=True,
             schwarz=True,
@@ -350,13 +354,13 @@ class TopsTestCase:
     [
         TopsTestCase(
             id="no_cards",
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             cards=[],
             expectation=pytest.raises(NoCardsError),
         ),
         TopsTestCase(
             id="null",
-            game_type=GameType.NULL,
+            game_type=ISkOGameTypes.NULL,
             cards=[
                 Card(Rank.JACK, Suit.CLUBS),
             ],
@@ -364,37 +368,37 @@ class TopsTestCase:
         ),
         TopsTestCase(
             id="pass",
-            game_type=GameType.PASS,
+            game_type=ISkOGameTypes.PASS,
             cards=[Card(Rank.JACK, Suit.CLUBS)],
             expectation=pytest.raises(InvalidGameTypeError),
         ),
         TopsTestCase(
             id="suit_with_1",
-            game_type=GameType.HEARTS,
+            game_type=ISkOGameTypes.HEARTS,
             cards=[Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.HEARTS)],
             expected_result=1,
         ),
         TopsTestCase(
             id="suit_without_1",
-            game_type=GameType.HEARTS,
+            game_type=ISkOGameTypes.HEARTS,
             cards=[Card(Rank.JACK, Suit.DIAMONDS), Card(Rank.JACK, Suit.SPADES)],
             expected_result=1,
         ),
         TopsTestCase(
             id="suit_with_2",
-            game_type=GameType.HEARTS,
+            game_type=ISkOGameTypes.HEARTS,
             cards=[Card(Rank.JACK, Suit.CLUBS), Card(Rank.JACK, Suit.SPADES)],
             expected_result=2,
         ),
         TopsTestCase(
             id="suit_without_4",
-            game_type=GameType.HEARTS,
+            game_type=ISkOGameTypes.HEARTS,
             cards=[Card(Rank.ACE, Suit.HEARTS)],
             expected_result=4,
         ),
         TopsTestCase(
             id="suit_with_11",
-            game_type=GameType.HEARTS,
+            game_type=ISkOGameTypes.HEARTS,
             cards=[
                 Card(Rank.JACK, Suit.CLUBS),
                 Card(Rank.JACK, Suit.SPADES),
@@ -412,31 +416,31 @@ class TopsTestCase:
         ),
         TopsTestCase(
             id="suit_without_10",
-            game_type=GameType.HEARTS,
+            game_type=ISkOGameTypes.HEARTS,
             cards=[Card(Rank.SEVEN, Suit.HEARTS), Card(Rank.ACE, Suit.SPADES)],
             expected_result=10,
         ),
         TopsTestCase(
             id="suit_without_11",
-            game_type=GameType.HEARTS,
+            game_type=ISkOGameTypes.HEARTS,
             cards=[Card(Rank.ACE, Suit.SPADES)],
             expected_result=11,
         ),
         TopsTestCase(
             id="grand_with_1",
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             cards=[Card(Rank.JACK, Suit.CLUBS)],
             expected_result=1,
         ),
         TopsTestCase(
             id="grand_without_1",
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             cards=[Card(Rank.JACK, Suit.HEARTS), Card(Rank.JACK, Suit.SPADES)],
             expected_result=1,
         ),
         TopsTestCase(
             id="grand_with_4",
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             cards=[
                 Card(Rank.JACK, Suit.DIAMONDS),
                 Card(Rank.JACK, Suit.SPADES),
@@ -448,7 +452,7 @@ class TopsTestCase:
         ),
         TopsTestCase(
             id="grand_without_4",
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             cards=[Card(Rank.ACE, Suit.SPADES)],
             expected_result=4,
         ),
@@ -475,21 +479,21 @@ class TrickWinnerTestCase:
         TrickWinnerTestCase(
             id="no_tricks",
             trick=[],
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             expected_result=0,
             expectation=pytest.raises(TrickNotFinishedError),
         ),
         TrickWinnerTestCase(
             id="trick_not_finished",
             trick=[Card(Rank.ACE, Suit.DIAMONDS), Card(Rank.JACK, Suit.HEARTS)],
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             expected_result=0,
             expectation=pytest.raises(TrickNotFinishedError),
         ),
         TrickWinnerTestCase(
             id="pass",
             trick=[],
-            game_type=GameType.PASS,
+            game_type=ISkOGameTypes.PASS,
             expected_result=0,
             expectation=pytest.raises(InvalidGameTypeError),
         ),
@@ -500,7 +504,7 @@ class TrickWinnerTestCase:
                 Card(Rank.ACE, Suit.DIAMONDS),
                 Card(Rank.ACE, Suit.SPADES),
             ],
-            game_type=GameType.HEARTS,
+            game_type=ISkOGameTypes.HEARTS,
             expected_result=0,
         ),
         TrickWinnerTestCase(
@@ -510,7 +514,7 @@ class TrickWinnerTestCase:
                 Card(Rank.ACE, Suit.DIAMONDS),
                 Card(Rank.ACE, Suit.SPADES),
             ],
-            game_type=GameType.SPADES,
+            game_type=ISkOGameTypes.SPADES,
             expected_result=2,
         ),
         TrickWinnerTestCase(
@@ -520,7 +524,7 @@ class TrickWinnerTestCase:
                 Card(Rank.ACE, Suit.DIAMONDS),
                 Card(Rank.TEN, Suit.DIAMONDS),
             ],
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             expected_result=1,
         ),
         TrickWinnerTestCase(
@@ -530,7 +534,7 @@ class TrickWinnerTestCase:
                 Card(Rank.ACE, Suit.DIAMONDS),
                 Card(Rank.JACK, Suit.DIAMONDS),
             ],
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             expected_result=2,
         ),
         TrickWinnerTestCase(
@@ -540,7 +544,7 @@ class TrickWinnerTestCase:
                 Card(Rank.JACK, Suit.HEARTS),
                 Card(Rank.JACK, Suit.CLUBS),
             ],
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             expected_result=2,
         ),
         TrickWinnerTestCase(
@@ -550,7 +554,7 @@ class TrickWinnerTestCase:
                 Card(Rank.EIGHT, Suit.DIAMONDS),
                 Card(Rank.NINE, Suit.DIAMONDS),
             ],
-            game_type=GameType.DIAMONDS,
+            game_type=ISkOGameTypes.DIAMONDS,
             expected_result=2,
         ),
         TrickWinnerTestCase(
@@ -560,7 +564,7 @@ class TrickWinnerTestCase:
                 Card(Rank.SEVEN, Suit.HEARTS),
                 Card(Rank.TEN, Suit.DIAMONDS),
             ],
-            game_type=GameType.HEARTS,
+            game_type=ISkOGameTypes.HEARTS,
             expected_result=1,
         ),
         TrickWinnerTestCase(
@@ -570,7 +574,7 @@ class TrickWinnerTestCase:
                 Card(Rank.QUEEN, Suit.CLUBS),
                 Card(Rank.JACK, Suit.DIAMONDS),
             ],
-            game_type=GameType.NULL,
+            game_type=ISkOGameTypes.NULL,
             expected_result=1,
         ),
         TrickWinnerTestCase(
@@ -580,7 +584,7 @@ class TrickWinnerTestCase:
                 Card(Rank.EIGHT, Suit.DIAMONDS),
                 Card(Rank.TEN, Suit.DIAMONDS),
             ],
-            game_type=GameType.NULL,
+            game_type=ISkOGameTypes.NULL,
             expected_result=2,
         ),
         TrickWinnerTestCase(
@@ -590,7 +594,7 @@ class TrickWinnerTestCase:
                 Card(Rank.TEN, Suit.DIAMONDS),
                 Card(Rank.QUEEN, Suit.DIAMONDS),
             ],
-            game_type=GameType.NULL,
+            game_type=ISkOGameTypes.NULL,
             expected_result=2,
         ),
         TrickWinnerTestCase(
@@ -600,7 +604,7 @@ class TrickWinnerTestCase:
                 Card(Rank.TEN, Suit.DIAMONDS),
                 Card(Rank.JACK, Suit.CLUBS),
             ],
-            game_type=GameType.NULL,
+            game_type=ISkOGameTypes.NULL,
             expected_result=1,
         ),
         TrickWinnerTestCase(
@@ -610,7 +614,7 @@ class TrickWinnerTestCase:
                 Card(Rank.TEN, Suit.DIAMONDS),
                 Card(Rank.ACE, Suit.CLUBS),
             ],
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             expected_result=1,
         ),
         TrickWinnerTestCase(
@@ -620,7 +624,7 @@ class TrickWinnerTestCase:
                 Card(Rank.JACK, Suit.HEARTS),
                 Card(Rank.JACK, Suit.SPADES),
             ],
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             expected_result=2,
         ),
         TrickWinnerTestCase(
@@ -630,7 +634,7 @@ class TrickWinnerTestCase:
                 Card(Rank.JACK, Suit.HEARTS),
                 Card(Rank.JACK, Suit.CLUBS),
             ],
-            game_type=GameType.GRAND,
+            game_type=ISkOGameTypes.GRAND,
             expected_result=2,
         ),
     ],
@@ -872,7 +876,7 @@ class IsValidBidTestCase:
     ids=lambda c: c.id,
 )
 def test_is_valid_bid(case: IsValidBidTestCase):
-    game = GameState.from_random_deal(isko, backhand)
+    game = ISkOGameState.from_random_deal(isko, backhand)
     for bid in case.previous_bids:
         previous_state = {
             "active_player": game.active_player,
@@ -945,14 +949,14 @@ class AdvanceBiddingTestCase:
                 Pass(player_idx=backhand),
                 DeclareBid(bid=18, player_idx=forehand),
             ],
-            expect_phase=GamePhase.DECLARATION,
+            expect_phase=GamePhases.DECLARATION,
             expect_active_player=forehand,
         )
     ],
     ids=lambda c: c.id,
 )
 def test_advance_bidding(case: AdvanceBiddingTestCase):
-    game = GameState.from_random_deal(isko, backhand)
+    game = ISkOGameState.from_random_deal(isko, backhand)
 
     for bid in case.bids:
         game.apply_action(bid)

@@ -1,24 +1,16 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-from enum import Enum, IntEnum
-from typing import Generator, Optional
-from typing import TYPE_CHECKING
+from dataclasses import dataclass, field
+from enum import IntEnum
+from typing import TYPE_CHECKING, Any, Generator, Generic, Literal, NewType, TypeVar
 
+from skaty.cards import Card
 
-# Import in this condition to avoid circular imports.
 if TYPE_CHECKING:
-    from skaty.actions import Action, PlayerIdx
     from skaty.game_state import GameState
 
-from skaty.cards import Card, Suit
+TState = TypeVar("TState", bound="GameState")
 
-
-class GamePhase(Enum):
-    BID = "BID"
-    PASSED = "PASSED"
-    DECLARATION = "DECLARATION"
-    PLAYING = "PLAYING"
-    GAME_OVER = "GAME_OVER"
+type PlayerIdx = Literal[0, 1, 2]
 
 
 class PlayerPosition(IntEnum):
@@ -31,46 +23,57 @@ class PlayerPosition(IntEnum):
     BACKHAND = 2
 
 
-class BiddingPhase(IntEnum):
-    """
-    Phase in the bidding process.
-    """
-
-    ForehandMiddlehand = 0
-    ForehandBackhand = 1
-    MiddlehandBackhand = 2
+GamePhase = NewType("GamePhase", str)
 
 
-class GameType(IntEnum):
-    """
-    Basic values for suit, grand and null games according to ISkO 2.4.1, 2.4.2. Null {hand|ouvert} are respected in the rule sets calculate_game_score method.
-    """
+class GamePhases:
+    BID = GamePhase("core:BID")
+    PASSED = GamePhase("core:PASSED")
+    DECLARATION = GamePhase("core:DECLARATION")
+    PLAYING = GamePhase("core:PLAYING")
+    GAME_OVER = GamePhase("core:GAME_OVER")
 
-    PASS = 0  # used in case a game is passed during bidding
-    DIAMONDS = 9
-    HEARTS = 10
-    SPADES = 11
-    CLUBS = 12
-    NULL = 23
-    GRAND = 24
+
+GameType = NewType("GameType", str)
+
+
+class GameTypes:
+    PASS = GameType("core:pass")  # used in case a game is passed during bidding
 
 
 @dataclass
-class GameDeclaration:
-    game_type: GameType
-    hand: bool = False
-    schneider: bool = False
-    schwarz: bool = False
-    open: bool = False
+class Action(ABC, Generic[TState]):
+    player_idx: PlayerIdx
+    _memory: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
+
+    def is_valid(self, state: TState, rule_set: "AbstractRuleSet[TState]") -> bool:
+        return rule_set.is_valid_action(state, self)
+
+    @abstractmethod
+    def apply(self, state: TState, rule_set: "AbstractRuleSet[TState]") -> None:
+        """Mutate state dependent on action type, state and rules."""
+        pass
+
+    @abstractmethod
+    def undo(self, state: TState) -> None:
+        """Reverse to state before action was applied. Restores state exactly."""
+        pass
 
 
-class AbstractRuleSet(ABC):
+class AbstractRuleSet(ABC, Generic[TState]):
+    @abstractmethod
+    def initialize_state(self, state: TState) -> None:
+        """
+        Hook to initialize rule-specific variables in state.
+        """
+        pass
+
     @abstractmethod
     def determine_trick_winner(self, trick: list[Card], game_type: GameType) -> int:
         pass
 
     @abstractmethod
-    def calculate_game_score(self, state: GameState) -> list[int]:
+    def calculate_game_score(self, state: TState) -> list[int]:
         """
         Attempt to calculate the game score in state.
         Returns a list with points (positive or negative) for each player with indexes corresponding to the state's players.
@@ -81,18 +84,18 @@ class AbstractRuleSet(ABC):
         pass
 
     @abstractmethod
-    def is_valid_action(self, state: GameState, action: Action) -> bool:
+    def is_valid_action(self, state: TState, action: Action) -> bool:
         """Checks if an action is valid in the current state."""
         pass
 
     @abstractmethod
     def get_valid_actions(
-        self, state: GameState, player_idx: PlayerIdx
+        self, state: TState, player_idx: PlayerIdx
     ) -> Generator["Action", None, None]:
         """Yields all valid actions the player can take in state."""
         pass
 
     @abstractmethod
-    def advance_state(self, state: GameState, action: Action) -> None:
+    def advance_state(self, state: TState, action: Action) -> None:
         """Gets called, after action is applied on state. The rule set could for example change phases or the active player."""
         pass

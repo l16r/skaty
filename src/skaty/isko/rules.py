@@ -1,18 +1,7 @@
-from typing import Generator, Optional, cast
 import math
 from itertools import combinations
+from typing import Generator, Optional, cast
 
-from skaty.actions import (
-    Action,
-    BurySkat,
-    DeclareBid,
-    DeclareGame,
-    DrawSkat,
-    Listen,
-    Pass,
-    PlayCard,
-    PlayerIdx,
-)
 from skaty.cards import Card, Rank, Suit
 from skaty.exceptions import (
     InvalidActionError,
@@ -22,17 +11,27 @@ from skaty.exceptions import (
     NoHigherBidPossible,
     TrickNotFinishedError,
 )
+from skaty.isko.actions import (
+    BurySkat,
+    DeclareBid,
+    DeclareGame,
+    DrawSkat,
+    Listen,
+    Pass,
+    PlayCard,
+)
+from skaty.isko.state import BiddingPhase, GameDeclaration, ISkOGameState, ISkOGameTypes
 from skaty.rules import (
     AbstractRuleSet,
-    BiddingPhase,
-    GameDeclaration,
+    Action,
     GamePhase,
+    GamePhases,
     GameType,
+    GameTypes,
+    PlayerIdx,
     PlayerPosition,
 )
 from skaty.trick import Trick
-from skaty.game_state import GameState
-
 
 # All bid values possible per ISkO (Null values and grand/suit values multiplied with range of their possible multipliers).
 _VALID_BIDS = frozenset(
@@ -104,39 +103,47 @@ _VALID_BIDS = frozenset(
 )
 
 
-class ISkO(AbstractRuleSet):
+class ISkO(AbstractRuleSet[ISkOGameState]):
     _VALID_BIDS = _VALID_BIDS
 
     # Map of actions to phases in which they are valid.
     _PHASE_RULES: dict[type[Action], list[GamePhase]] = {
-        PlayCard: [GamePhase.PLAYING],
-        DrawSkat: [GamePhase.DECLARATION],
-        BurySkat: [GamePhase.DECLARATION],
-        DeclareGame: [GamePhase.DECLARATION],
-        DeclareBid: [GamePhase.BID],
-        Listen: [GamePhase.BID],
-        Pass: [GamePhase.BID],
+        PlayCard: [GamePhases.PLAYING],
+        DrawSkat: [GamePhases.DECLARATION],
+        BurySkat: [GamePhases.DECLARATION],
+        DeclareGame: [GamePhases.DECLARATION],
+        DeclareBid: [GamePhases.BID],
+        Listen: [GamePhases.BID],
+        Pass: [GamePhases.BID],
     }
 
     def __init__(self) -> None:
         super().__init__()
 
+    def initialize_state(self, state: ISkOGameState) -> None:
+        state.bidding_phase = BiddingPhase.ForehandMiddlehand
+        state.declaration = None
+        state.highest_bid = 0
+        state.last_bid = None
+        state.bid_before = [False, False, False]
+        state.passes = [False, False, False]
+
     def trump_suit(self, game_type: GameType) -> Optional[Suit]:
         match game_type:
-            case GameType.DIAMONDS:
+            case ISkOGameTypes.DIAMONDS:
                 return Suit.DIAMONDS
-            case GameType.HEARTS:
+            case ISkOGameTypes.HEARTS:
                 return Suit.HEARTS
-            case GameType.SPADES:
+            case ISkOGameTypes.SPADES:
                 return Suit.SPADES
-            case GameType.CLUBS:
+            case ISkOGameTypes.CLUBS:
                 return Suit.CLUBS
         # Null, Grand, Passed
         return None
 
     def is_card_trump(self, card: Card, game_type: GameType) -> bool:
         # ISkO 2.2.4
-        if game_type in (GameType.NULL, GameType.PASS):
+        if game_type in (ISkOGameTypes.NULL, ISkOGameTypes.PASS):
             return False
 
         # ISkO 2.2.2f.
@@ -163,7 +170,7 @@ class ISkO(AbstractRuleSet):
             ValueError: If the cards list is empty.
             InvalidGameTypeError: If game_type is GameType.NULL or GameType.PASS.
         """
-        if game_type in (GameType.PASS, GameType.NULL):
+        if game_type in (ISkOGameTypes.PASS, ISkOGameTypes.NULL):
             raise InvalidGameTypeError("No tops can be calculated in Null or Pass.")
 
         if len(cards) == 0:
@@ -209,9 +216,9 @@ class ISkO(AbstractRuleSet):
         Raises:
             InvalidGameTypeError: If game_type is GameType.PASS.
         """
-        if game_type is GameType.PASS:
+        if game_type == ISkOGameTypes.PASS:
             raise InvalidGameTypeError
-        if game_type is GameType.NULL:
+        if game_type == ISkOGameTypes.NULL:
             return card.rank.value
         # Suit or Grand
         if card.rank is Rank.JACK:
@@ -239,7 +246,7 @@ class ISkO(AbstractRuleSet):
             TrickNotFinishedError: If trick does not contain exactly 3 cards.
             InvalidGameTypeError: If game_type is GameType.PASS.
         """
-        if game_type is GameType.PASS:
+        if game_type == ISkOGameTypes.PASS:
             raise InvalidGameTypeError()
         if len(trick) != 3:
             raise TrickNotFinishedError()
@@ -264,19 +271,44 @@ class ISkO(AbstractRuleSet):
 
         return winner
 
-    def calculate_game_score(self, state: GameState) -> list[int]:
+    def _get_basic_value(self, game_type: GameType) -> int:
+        """
+        Returns the basic value per ISkO 2.4.1.
+
+        Raises:
+            InvalidGameTypeError: If game_type is Pass or Null.
+        """
+        match game_type:
+            case ISkOGameTypes.DIAMONDS:
+                return 9
+            case ISkOGameTypes.HEARTS:
+                return 10
+            case ISkOGameTypes.SPADES:
+                return 11
+            case ISkOGameTypes.CLUBS:
+                return 12
+            case ISkOGameTypes.GRAND:
+                return 24
+
+        raise InvalidGameTypeError()
+
+    def calculate_game_score(self, state: ISkOGameState) -> list[int]:
         scores = [0, 0, 0]
         declarer = state.declarer_idx
         bid = state.bid
         game_type = state.game_type
 
-        if game_type is GameType.PASS or state.phase is GamePhase.PASSED or bid is None:
+        if (
+            game_type is GameTypes.PASS
+            or state.phase is GamePhases.PASSED
+            or bid is None
+        ):
             raise InvalidGameStateError("A game has no score if it is passed.")
         if declarer is None or state.declaration is None:
             raise InvalidGameStateError(
                 "A game has no score if there is no declarer or declaration."
             )
-        if len(state.trick_history) != 10 or state.phase != GamePhase.GAME_OVER:
+        if len(state.trick_history) != 10 or state.phase != GamePhases.GAME_OVER:
             raise InvalidGameStateError(
                 "A game has no score if it is not finished yet."
             )
@@ -290,7 +322,7 @@ class ISkO(AbstractRuleSet):
         tricks_won_by_player = self.get_won_tricks(state)
         declarer_tricks = tricks_won_by_player[declarer]
 
-        if state.game_type is GameType.NULL:
+        if state.game_type is ISkOGameTypes.NULL:
             if hand and open:
                 game_value = 59
             elif open:
@@ -312,7 +344,7 @@ class ISkO(AbstractRuleSet):
         if tops is None:
             raise InvalidGameStateError("No tops were saved during declaration.")
 
-        base_value = game_type.value
+        base_value = self._get_basic_value(game_type)
         declarer_points = (
             sum(trick.get_trick_points() for trick in tricks_won_by_player[declarer])
             + state.skat[0].points
@@ -359,7 +391,7 @@ class ISkO(AbstractRuleSet):
             scores[declarer] = -2 * game_value
         return scores
 
-    def get_won_tricks(self, state: GameState) -> list[list[Trick]]:
+    def get_won_tricks(self, state: ISkOGameState) -> list[list[Trick]]:
         """
         Reconstructs the tricks won by each player.
 
@@ -368,7 +400,7 @@ class ISkO(AbstractRuleSet):
         """
         tricks_won: list[list[Trick]] = [[], [], []]
 
-        if state.declaration is None or state.declaration.game_type is GameType.PASS:
+        if state.declaration is None or state.declaration.game_type is GameTypes.PASS:
             return tricks_won
 
         game_type = state.game_type
@@ -418,7 +450,7 @@ class ISkO(AbstractRuleSet):
 
     def is_valid_bid(
         self,
-        state: GameState,
+        state: ISkOGameState,
         bid: DeclareBid | Listen | Pass,
     ) -> bool:
         """
@@ -426,23 +458,15 @@ class ISkO(AbstractRuleSet):
         """
         player = bid.player_idx
         player_pos = state.get_player_position(player)
-        previous_bids = state.all_bids
         bidding_phase = state.bidding_phase
 
         # Check if player has passed before.
-        for b in previous_bids:
-            if b.player_idx == player and isinstance(b, Pass):
-                return False
+        if state.passes[bid.player_idx]:
+            return False
 
         # Count passes
-        passes = len(
-            [action.player_idx for action in previous_bids if isinstance(action, Pass)]
-        )
-        bid_before = any(
-            isinstance(action, (DeclareBid, Listen))
-            for action in previous_bids
-            if action.player_idx == player
-        )
+        passes = sum(state.passes)
+        bid_before = state.bid_before[bid.player_idx]
 
         # If both other players have passed, reject Pass if player has listened/bid before
         if passes == 2 and isinstance(bid, Pass) and bid_before:
@@ -465,18 +489,11 @@ class ISkO(AbstractRuleSet):
                 return False
 
             # Must be higher than all previous bids and valid value
-            max_bid = max(
-                (a.bid for a in previous_bids if isinstance(a, DeclareBid)),
-                default=0,
-            )
-            return bid.bid > max_bid and bid.bid in self._VALID_BIDS
+            return bid.bid > state.highest_bid and bid.bid in self._VALID_BIDS
 
         # Listen can only be done in response to a bid directly before
         if isinstance(bid, Listen):
-            if len(previous_bids) == 0:
-                return False
-            bid_before = previous_bids[-1]
-            return isinstance(bid_before, DeclareBid)
+            return isinstance(state.last_bid, DeclareBid)
 
         # Pass is allowed unless already passed or forbidden by above rule
         if isinstance(bid, Pass):
@@ -497,7 +514,7 @@ class ISkO(AbstractRuleSet):
             return False
 
         # No card can be played if game is passed.
-        if game_type is GameType.PASS:
+        if game_type is GameTypes.PASS:
             return False
         # Any card can be played if it is first
         if first_card is None:
@@ -526,10 +543,10 @@ class ISkO(AbstractRuleSet):
         schwarz = declaration.schwarz
         open = declaration.open
 
-        if game_type is GameType.PASS:
+        if game_type == GameTypes.PASS:
             return False
 
-        if game_type is GameType.NULL:
+        if game_type == ISkOGameTypes.NULL:
             if schneider or schwarz:
                 return False
         else:  # Suit and Grand
@@ -543,9 +560,9 @@ class ISkO(AbstractRuleSet):
         return True
 
     def get_valid_actions(
-        self, state: GameState, player_idx: PlayerIdx
+        self, state: ISkOGameState, player_idx: PlayerIdx
     ) -> Generator[Action, None, None]:
-        if player_idx != state.active_player or state.phase == GamePhase.GAME_OVER:
+        if player_idx != state.active_player or state.phase == GamePhases.GAME_OVER:
             return
 
         valid_actions = self.get_action_types_for_phase(state.phase)
@@ -579,10 +596,15 @@ class ISkO(AbstractRuleSet):
                     yield BurySkat(cards=(combo[0], combo[1]), player_idx=player_idx)
 
             elif action_type is DeclareGame:
-                for gt in GameType:
-                    if gt is GameType.PASS:
-                        continue
-                    elif gt is GameType.NULL:
+                for gt in [
+                    ISkOGameTypes.NULL,
+                    ISkOGameTypes.DIAMONDS,
+                    ISkOGameTypes.HEARTS,
+                    ISkOGameTypes.SPADES,
+                    ISkOGameTypes.CLUBS,
+                    ISkOGameTypes.GRAND,
+                ]:
+                    if gt is ISkOGameTypes.NULL:
                         yield DeclareGame(
                             game_type=gt, open=False, player_idx=player_idx
                         )
@@ -613,7 +635,7 @@ class ISkO(AbstractRuleSet):
                             player_idx=player_idx,
                         )
 
-    def is_valid_action(self, state: GameState, action: Action) -> bool:
+    def is_valid_action(self, state: ISkOGameState, action: Action) -> bool:
         # Only the active player can take action
         if action.player_idx != state.active_player:
             return False
@@ -667,26 +689,26 @@ class ISkO(AbstractRuleSet):
             f"Cannot determine if action {action} is valid in {state}."
         )
 
-    def advance_state(self, state: GameState, action: Action) -> None:
+    def advance_state(self, state: ISkOGameState, action: Action) -> None:
         match action:
             case DeclareBid() | Listen() | Pass():
                 return self.advance_bidding(state, action)
             case DrawSkat() | BurySkat():
                 return
             case DeclareGame(player_idx, game_type, schneider, schwarz, open):
-                state.phase = GamePhase.PLAYING
+                state.phase = GamePhases.PLAYING
                 state.declaration = GameDeclaration(
                     game_type, state.hand_available, schneider, schwarz, open
                 )
                 state.active_player = state._forehand
                 state.game_type = game_type
-                if game_type not in (GameType.PASS, GameType.NULL):
+                if game_type not in (GameTypes.PASS, ISkOGameTypes.NULL):
                     state.tops = self.tops(state.hands[player_idx], game_type)
             case PlayCard():
                 return self.advance_playing(state, action)
 
     def advance_bidding(
-        self, state: GameState, action: DeclareBid | Listen | Pass
+        self, state: ISkOGameState, action: DeclareBid | Listen | Pass
     ) -> None:
         """
         Mutate the state in bidding dependent on action.
@@ -713,7 +735,7 @@ class ISkO(AbstractRuleSet):
         - state.phase: to GamePhase.GAME_OVER.
         """
         player = state.active_player
-        passes = state.number_of_passes
+        passes = sum(state.passes)
         bid_before = state.bid is not None
 
         if state.bidding_phase is BiddingPhase.ForehandMiddlehand:
@@ -749,23 +771,23 @@ class ISkO(AbstractRuleSet):
         if isinstance(action, Pass):
             # 2 players passed
             if bid_before:
-                state.phase = GamePhase.DECLARATION
+                state.phase = GamePhases.DECLARATION
                 state.declarer_idx = other_player
                 state.active_player = state.declarer_idx
             elif passes == 2:
-                state.phase = GamePhase.PASSED
+                state.phase = GamePhases.PASSED
             elif passes < 2:
                 state.active_player = other_player
 
         elif isinstance(action, (Listen, DeclareBid)):
             if passes == 2:
-                state.phase = GamePhase.DECLARATION
+                state.phase = GamePhases.DECLARATION
                 state.declarer_idx = player
                 state.active_player = state.declarer_idx
             else:
                 state.active_player = other_player
 
-    def advance_playing(self, state: GameState, action: PlayCard) -> None:
+    def advance_playing(self, state: ISkOGameState, action: PlayCard) -> None:
         """
         Mutate the state as card is played.
         Might modify:
@@ -792,7 +814,7 @@ class ISkO(AbstractRuleSet):
             # Reset trick
             state.current_trick = Trick()
             if len(state.trick_history) == 10:
-                state.phase = GamePhase.GAME_OVER
+                state.phase = GamePhases.GAME_OVER
                 return
 
             # Winner of trick starts next trick

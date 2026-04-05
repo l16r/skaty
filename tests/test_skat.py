@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import MagicMock
 from skaty.cards import Card, Suit, Rank
-from skaty.actions import DrawSkat, BurySkat
-from skaty.isko import ISkO
-from skaty.rules import GamePhase
+from skaty.isko.actions import BurySkat, DrawSkat
+from skaty.isko.rules import ISkO
+from skaty.rules import GamePhase, GamePhases
 
 
 @pytest.fixture
@@ -16,7 +16,7 @@ def mock_state():
     """A dummy state with exactly what the actions need to interact with."""
     state = MagicMock()
     state.active_player = 1
-    state.phase = GamePhase.DECLARATION
+    state.phase = GamePhases.DECLARATION
     state.skat = [Card(Rank.SEVEN, Suit.CLUBS), Card(Rank.EIGHT, Suit.CLUBS)]
     state.hands = [
         [],
@@ -38,9 +38,9 @@ def test_draw_skat_is_valid(mock_state, ruleset):
     assert action_wrong_player.is_valid(mock_state, ruleset) is False
 
     # Invalid (phase not permitted by ruleset)
-    mock_state.phase = GamePhase.BID
+    mock_state.phase = GamePhases.BID
     assert action.is_valid(mock_state, ruleset) is False
-    mock_state.phase = GamePhase.DECLARATION
+    mock_state.phase = GamePhases.DECLARATION
 
     # Invalid (Skat already drawn (len != 2))
     mock_state.skat = []
