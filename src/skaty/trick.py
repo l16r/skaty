@@ -69,4 +69,4 @@ class Trick:
         """
         Returns the sum of all card points. The trick does not have to be completed.
         """
-        return reduce(lambda acc, c: acc + c.points, self._cards, 0)
+        return sum(c.points for c in self._cards)
