@@ -13,26 +13,8 @@ if TYPE_CHECKING:
 type PlayerIdx = Literal[0, 1, 2]
 
 
-class ActionType(Enum):
-    """
-    All possible actions. The legality of the actions is decided according to the rule set.
-    """
-
-    PLAY_CARD = "PLAY_CARD"
-    DRAW_SKAT = "DRAW_SKAT"
-    BURY_SKAT = "BURY_SKAT"
-    DECLARE_BID = "DECLARE_BID"
-    LISTEN = "LISTEN"
-    PASS = "PASS"
-    DECLARE_GAME = "DECLARE_GAME"
-
-
 @dataclass
 class Action:
-    @property
-    def type(self) -> ActionType:
-        return ActionType[self.__class__.__name__.upper()]
-
     player_idx: PlayerIdx
     _memory: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
 
