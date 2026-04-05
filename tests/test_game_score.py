@@ -246,3 +246,10 @@ def test_calculate_game_score_raises_on_missing_tops(base_state, ruleset):
     with patch.object(ruleset, "get_won_tricks", return_value=[[], [], []]):
         with pytest.raises(InvalidGameStateError):
             ruleset.calculate_game_score(base_state)
+
+
+def test_calculate_game_score_raises_on_no_declarer(base_state, ruleset):
+    base_state.declarer_idx = None
+
+    with pytest.raises(InvalidGameStateError):
+        ruleset.calculate_game_score(base_state)

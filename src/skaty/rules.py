@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 # Import in this condition to avoid circular imports.
 if TYPE_CHECKING:
-    from skaty.trick import Trick
     from skaty.actions import Action, PlayerIdx
     from skaty.game_state import GameState
 
