@@ -66,22 +66,6 @@ class GameDeclaration:
 
 class AbstractRuleSet(ABC):
     @abstractmethod
-    def trump_suit(self, game_type: GameType) -> Optional[Suit]:
-        pass
-
-    @abstractmethod
-    def is_card_trump(self, card: Card, game_type: GameType) -> bool:
-        pass
-
-    @abstractmethod
-    def tops(self, cards: list[Card], game_type: GameType) -> int:
-        pass
-
-    @abstractmethod
-    def get_card_effective_rank_value(self, card: Card, game_type: GameType) -> int:
-        pass
-
-    @abstractmethod
     def determine_trick_winner(self, trick: list[Card], game_type: GameType) -> int:
         pass
 
