@@ -38,6 +38,15 @@ class GameDeclaration:
 
 
 class ISkOGameState(GameState):
+    __slots__ = (
+        "bidding_phase",
+        "declaration",
+        "highest_bid",
+        "last_bid",
+        "bid_before",
+        "passes",
+    )
+
     bidding_phase: BiddingPhase
     declaration: Optional[GameDeclaration]
     highest_bid: int

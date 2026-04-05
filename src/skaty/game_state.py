@@ -18,6 +18,27 @@ from skaty.trick import Trick
 
 
 class GameState:
+    __slots__ = (
+        "_rule_set",
+        "_log",
+        "phase",
+        "game_type",
+        "_forehand",
+        "_middlehand",
+        "_backhand",
+        "active_player",
+        "hands",
+        "skat",
+        "points",
+        "current_trick",
+        "trick_history",
+        "action_history",
+        "bid",
+        "tops",
+        "hand_available",
+        "declarer_idx",
+    )
+
     def __init__(
         self,
         rule_set: AbstractRuleSet["GameState"],
