@@ -576,9 +576,10 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
             if action_type is PlayCard:
                 hand = state.hands[player_idx]
                 for card in hand:
-                    action = PlayCard(card=card, player_idx=player_idx)
-                    if action.is_valid(state, self):
-                        yield action
+                    if self.is_valid_card_play(
+                        hand, card, state.current_trick.first_card, state.game_type
+                    ):
+                        yield PlayCard(card=card, player_idx=player_idx)
 
             elif action_type is DeclareBid:
                 try:
