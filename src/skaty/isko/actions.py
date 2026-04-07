@@ -214,6 +214,7 @@ class PlayCard(Action[ISkOGameState]):
                 "points": state.points.copy(),
                 "trick_finishes": trick_finishes,
                 "phase": state.phase,
+                "tricks_won": state.tricks_won.copy(),
             }
         )
         state.hands[self.player_idx].remove(self.card)
@@ -227,6 +228,7 @@ class PlayCard(Action[ISkOGameState]):
         state.active_player = memory["active_player"]
         state.points = memory["points"]
         state.phase = memory["phase"]
+        state.tricks_won = memory["tricks_won"]
 
         if memory["trick_finishes"]:
             state.current_trick = state.trick_history.pop()

@@ -45,6 +45,7 @@ class ISkOGameState(GameState):
         "last_bid",
         "bid_before",
         "passes",
+        "tricks_won",
     )
 
     bidding_phase: BiddingPhase
@@ -53,3 +54,4 @@ class ISkOGameState(GameState):
     last_bid: Optional[DeclareBid | Listen | Pass]
     bid_before: list[bool]
     passes: list[bool]
+    tricks_won: list[int]

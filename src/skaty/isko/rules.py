@@ -34,7 +34,7 @@ from skaty.rules import (
 from skaty.trick import Trick
 
 # All bid values possible per ISkO (Null values and grand/suit values multiplied with range of their possible multipliers).
-_VALID_BIDS = [
+VALID_BIDS = [
     18,
     20,
     22,
@@ -102,7 +102,73 @@ _VALID_BIDS = [
 
 
 class ISkO(AbstractRuleSet[ISkOGameState]):
-    _VALID_BIDS = _VALID_BIDS
+    _VALID_BIDS = VALID_BIDS
+
+    _NEXT_VALID_BID = {
+        None: 18,
+        18: 20,
+        20: 22,
+        22: 23,
+        23: 24,
+        24: 27,
+        27: 30,
+        30: 33,
+        33: 35,
+        35: 36,
+        36: 40,
+        40: 44,
+        44: 45,
+        45: 46,
+        46: 48,
+        48: 50,
+        50: 54,
+        54: 55,
+        55: 59,
+        59: 60,
+        60: 63,
+        63: 66,
+        66: 70,
+        70: 72,
+        72: 77,
+        77: 80,
+        80: 81,
+        81: 84,
+        84: 88,
+        88: 90,
+        90: 96,
+        96: 99,
+        99: 100,
+        100: 108,
+        108: 110,
+        110: 117,
+        117: 120,
+        120: 121,
+        121: 126,
+        126: 130,
+        130: 132,
+        132: 135,
+        135: 140,
+        140: 143,
+        143: 144,
+        144: 150,
+        150: 153,
+        153: 154,
+        154: 156,
+        156: 160,
+        160: 162,
+        162: 165,
+        165: 168,
+        168: 170,
+        170: 176,
+        176: 180,
+        180: 187,
+        187: 192,
+        192: 198,
+        198: 204,
+        204: 216,
+        216: 240,
+        240: 264,
+    }
 
     # Map of actions to phases in which they are valid.
     _PHASE_RULES: dict[type[Action], list[GamePhase]] = {
@@ -125,11 +191,17 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         Rank.SEVEN: 1,
     }
 
-    _GLOBAL_PLAY_CARDS = tuple(
+    _CACHED_PLAYCARD = tuple(
         tuple(
             PlayCard(player_idx=p, card=c)
             for c in sorted(create_deck(), key=lambda c: c.uid)
         )
+        for p in (0, 1, 2)
+    )
+    _CACHED_PASS = tuple(Pass(player_idx=p) for p in (0, 1, 2))
+    _CACHED_LISTEN = tuple(Listen(player_idx=p) for p in (0, 1, 2))
+    _CACHED_BIDS = tuple(
+        {bid: DeclareBid(player_idx=p, bid=bid) for bid in VALID_BIDS}
         for p in (0, 1, 2)
     )
 
@@ -143,6 +215,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         state.last_bid = None
         state.bid_before = [False, False, False]
         state.passes = [False, False, False]
+        state.tricks_won = [0, 0, 0]
 
     def trump_suit(self, game_type: GameType) -> Optional[Suit]:
         match game_type:
@@ -330,8 +403,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         open = state.declaration.open
 
         # Reconstruct the tricks
-        tricks_won_by_player = self.get_won_tricks(state)
-        declarer_tricks = tricks_won_by_player[declarer]
+        declarer_tricks = state.tricks_won[declarer]
 
         if state.game_type is ISkOGameTypes.NULL:
             if hand and open:
@@ -343,7 +415,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
             else:
                 game_value = 23
 
-            won = len(declarer_tricks) == 0
+            won = declarer_tricks == 0
 
             if game_value < bid:
                 won = False
@@ -357,14 +429,12 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
 
         base_value = self._get_basic_value(game_type)
         declarer_points = (
-            sum(trick.get_trick_points() for trick in tricks_won_by_player[declarer])
-            + state.skat[0].points
-            + state.skat[1].points
+            state.points[declarer] + state.skat[0].points + state.skat[1].points
         )
         opponents_points = 120 - declarer_points
 
         is_schneider = (opponents_points <= 30) or (declarer_points <= 30)
-        is_schwarz = len(declarer_tricks) == 0 or len(declarer_tricks) == 10
+        is_schwarz = declarer_tricks == 0 or declarer_tricks == 10
 
         multiplier = 1 + tops
         if hand:
@@ -402,31 +472,6 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
             scores[declarer] = -2 * game_value
         return scores
 
-    def get_won_tricks(self, state: ISkOGameState) -> list[list[Trick]]:
-        """
-        Reconstructs the tricks won by each player.
-
-        Returns:
-            A list of length 3. The index corresponds to player_idx. The value at the index if a list of tricks that this player won.
-        """
-        tricks_won: list[list[Trick]] = [[], [], []]
-
-        if state.declaration is None or state.declaration.game_type is GameTypes.PASS:
-            return tricks_won
-
-        game_type = state.game_type
-        current_leader = state._forehand
-
-        for trick in state.trick_history:
-            cards = trick.cards
-            winner_offset = self.determine_trick_winner(cards, game_type)
-            winner_idx = (current_leader + winner_offset) % 3
-
-            tricks_won[winner_idx].append(trick)
-            current_leader = winner_idx
-
-        return tricks_won
-
     def is_valid_action_during_phase(
         self,
         action: Action,
@@ -451,12 +496,10 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         Raises:
             NoHigherBidPossible: If no higher bid is possible.
         """
-        if current_bid is None:
-            return 18
-        for b in self._VALID_BIDS:
-            if b > current_bid:
-                return b
-        raise NoHigherBidPossible()
+        try:
+            return self._NEXT_VALID_BID[current_bid]
+        except KeyError:
+            raise NoHigherBidPossible
 
     def is_valid_bid(
         self,
@@ -584,20 +627,29 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
                     if self.is_valid_card_play(
                         hand, card, state.current_trick.first_card, state.game_type
                     ):
-                        yield self._GLOBAL_PLAY_CARDS[player_idx][card.uid]
+                        yield self._CACHED_PLAYCARD[player_idx][card.uid]
 
             elif action_type is DeclareBid:
                 try:
                     next_bid = self.get_next_valid_bid(state.bid)
+                    action = self._CACHED_BIDS[player_idx][next_bid]
+                    if not self.is_valid_bid(state, action):
+                        continue
+                    yield action
                 except NoHigherBidPossible:
                     continue
 
-                if self.is_valid_bid(
-                    state, DeclareBid(player_idx=player_idx, bid=next_bid)
-                ):
-                    yield DeclareBid(bid=next_bid, player_idx=player_idx)
+            elif action_type is Pass:
+                action = self._CACHED_PASS[player_idx]
+                if action.is_valid(state, self):
+                    yield action
 
-            elif action_type in (Pass, Listen, DrawSkat):
+            elif action_type is Listen:
+                action = self._CACHED_LISTEN[player_idx]
+                if action.is_valid(state, self):
+                    yield action
+
+            elif action_type is DrawSkat:
                 action = action_type(player_idx=player_idx)
                 if action.is_valid(state, self):
                     yield action
@@ -809,6 +861,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         - state.current_trick
         - state.trick_history
         - state.points
+        - state.tricks_won
         """
         state.current_trick.add_card(action.card)
 
@@ -821,6 +874,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
             first_player = (current_player - 2) % 3
             winner = (first_player + winner_offset) % 3
             state.points[winner] += points
+            state.tricks_won[winner] += 1
 
             state.trick_history.append(state.current_trick)
             # Reset trick

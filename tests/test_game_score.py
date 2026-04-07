@@ -1,6 +1,6 @@
 import pytest
 from dataclasses import dataclass
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from skaty.isko.rules import ISkO, ISkOGameTypes
 from skaty.rules import GamePhases, GameType
@@ -35,6 +35,8 @@ def base_state():
     state.skat = [MagicMock(), MagicMock()]
     state.bid = 18
     state.game_type = ISkOGameTypes.CLUBS
+    state.points = [0, 0, 0]
+    state.tricks_won = [0, 0, 0]
     return state
 
 
@@ -210,16 +212,14 @@ def test_calculate_game_score(case: ScoreTestCase, base_state, ruleset):
     base_state.skat[0].points = case.skat_points // 2
     base_state.skat[1].points = case.skat_points - (case.skat_points // 2)
 
-    declarer_tricks = []
-    for i in range(case.declarer_tricks_count):
-        t = MagicMock(spec=Trick)
-        t.get_trick_points.return_value = case.declarer_trick_points if i == 0 else 0
-        declarer_tricks.append(t)
+    base_state.points = [
+        case.declarer_trick_points,
+        120 - case.declarer_trick_points,
+        0,
+    ]
+    base_state.tricks_won = [case.declarer_tricks_count, 0, 0]
 
-    with patch.object(
-        ruleset, "get_won_tricks", return_value=[declarer_tricks, [], []]
-    ):
-        scores = ruleset.calculate_game_score(base_state)
+    scores = ruleset.calculate_game_score(base_state)
 
     assert scores[0] == case.expected_score
     assert scores[1] == 0
@@ -242,10 +242,8 @@ def test_calculate_game_score_raises_on_missing_tops(base_state, ruleset):
     base_state.game_type = ISkOGameTypes.CLUBS
     base_state.tops = None
 
-    # Built-in patch als Context Manager
-    with patch.object(ruleset, "get_won_tricks", return_value=[[], [], []]):
-        with pytest.raises(InvalidGameStateError):
-            ruleset.calculate_game_score(base_state)
+    with pytest.raises(InvalidGameStateError):
+        ruleset.calculate_game_score(base_state)
 
 
 def test_calculate_game_score_raises_on_no_declarer(base_state, ruleset):
