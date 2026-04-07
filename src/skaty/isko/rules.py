@@ -584,9 +584,10 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
                 except NoHigherBidPossible:
                     continue
 
-                action = DeclareBid(bid=next_bid, player_idx=player_idx)
-                if action.is_valid(state, self):
-                    yield action
+                if self.is_valid_bid(
+                    state, DeclareBid(player_idx=player_idx, bid=next_bid)
+                ):
+                    yield DeclareBid(bid=next_bid, player_idx=player_idx)
 
             elif action_type in (Pass, Listen, DrawSkat):
                 action = action_type(player_idx=player_idx)
