@@ -254,21 +254,25 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
 
         # Assume first player wins.
         winner = 0
+        winner_card = trick[winner]
+        winner_val = self.get_card_effective_rank_value(winner_card, game_type)
 
-        for i, c in enumerate(trick[1:]):
+        for i in range(1, 3):
+            c = trick[i]
+            c_val = self.get_card_effective_rank_value(c, game_type)
+
             # Followed suit and played a stronger card.
-            if c.suit is trick[winner].suit and self.get_card_effective_rank_value(
-                trick[winner], game_type
-            ) < self.get_card_effective_rank_value(c, game_type):
+            if c.suit is winner_card.suit and winner_val < c_val:
                 # Due to slicing, i starts at 0
-                winner = i + 1
+                winner = i
+                winner_card = c
+                winner_val = c_val
+
             # Played a stronger trump card.
-            elif self.is_card_trump(
-                c, game_type
-            ) and self.get_card_effective_rank_value(
-                trick[winner], game_type
-            ) < self.get_card_effective_rank_value(c, game_type):
-                winner = i + 1
+            elif self.is_card_trump(c, game_type) and winner_val < c_val:
+                winner = i
+                winner_card = c
+                winner_val = c_val
 
         return winner
 
