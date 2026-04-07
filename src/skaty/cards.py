@@ -47,11 +47,24 @@ class Suit(IntEnum):
 
 
 class Card:
-    __slots__ = "_rank", "_suit"
+    __slots__ = "_rank", "_suit", "points", "uid"
+    _instances: dict[tuple[Rank, Suit], "Card"] = {}
+
+    def __new__(cls, rank: Rank, suit: Suit):
+        key = (rank, suit)
+        if key not in cls._instances:
+            instance = super().__new__(cls)
+            cls._instances[key] = instance
+        return cls._instances[key]
 
     def __init__(self, rank: Rank, suit: Suit):
+        if hasattr(self, "uid"):
+            return
+
         self._rank = rank
         self._suit = suit
+        self.points = rank.points
+        self.uid = self._suit.value * 8 + (self._rank.value - 7)
 
     @property
     def rank(self) -> Rank:
@@ -61,30 +74,11 @@ class Card:
     def suit(self) -> Suit:
         return self._suit
 
-    @property
-    def points(self) -> int:
-        return self._rank.points
-
-    @property
-    def uid(self) -> int:
-        """
-        Unique identifier (0-31) for AI tensors.
-        """
-        return self._suit.value * 8 + (self._rank.value - 7)
-
-    def __eq__(self, other) -> bool:
-        if not isinstance(other, Card):
-            return False
-        return self.suit is other.suit and self.rank is other.rank
-
     def __str__(self) -> str:
         return f"{self.rank.name} of {self.suit.name}"
 
     def __repr__(self) -> str:
         return f"Card({self.rank.name}, {self.suit.name})"
-
-    def __hash__(self) -> int:
-        return hash((self.suit, self.rank))
 
 
 def create_deck() -> list[Card]:
