@@ -41,7 +41,7 @@ class GameTypes:
     PASS = GameType("core:pass")  # used in case a game is passed during bidding
 
 
-@dataclass
+@dataclass(frozen=True)
 class Action(ABC, Generic[TState]):
     player_idx: PlayerIdx
     _memory: dict[str, Any] = field(default_factory=dict, init=False, repr=False)

@@ -5,7 +5,7 @@ from skaty.isko.state import ISkOGameState
 from skaty.rules import AbstractRuleSet, Action, GameType
 
 
-@dataclass
+@dataclass(frozen=True)
 class DeclareBid(Action[ISkOGameState]):
     """Declare bid value."""
 
@@ -14,16 +14,18 @@ class DeclareBid(Action[ISkOGameState]):
     def apply(
         self, state: ISkOGameState, rule_set: AbstractRuleSet[ISkOGameState]
     ) -> None:
-        self._memory = {
-            "active_player": state.active_player,
-            "bid": state.bid,
-            "bidding_phase": state.bidding_phase,
-            "phase": state.phase,
-            "declarer_idx": state.declarer_idx,
-            "highest_bid": state.highest_bid,
-            "last_bid": state.last_bid,
-            "bid_before": state.bid_before[self.player_idx],
-        }
+        state.undo_memory.append(
+            {
+                "active_player": state.active_player,
+                "bid": state.bid,
+                "bidding_phase": state.bidding_phase,
+                "phase": state.phase,
+                "declarer_idx": state.declarer_idx,
+                "highest_bid": state.highest_bid,
+                "last_bid": state.last_bid,
+                "bid_before": state.bid_before[self.player_idx],
+            }
+        )
 
         rule_set.advance_state(state, self)
 
@@ -34,31 +36,35 @@ class DeclareBid(Action[ISkOGameState]):
         state.bid_before[self.player_idx] = True
 
     def undo(self, state: ISkOGameState) -> None:
-        state.bid = self._memory["bid"]
-        state.active_player = self._memory["active_player"]
-        state.bidding_phase = self._memory["bidding_phase"]
-        state.phase = self._memory["phase"]
-        state.declarer_idx = self._memory["declarer_idx"]
-        state.highest_bid = self._memory["highest_bid"]
-        state.last_bid = self._memory["last_bid"]
-        state.bid_before[self.player_idx] = self._memory["bid_before"]
+        memory = state.undo_memory.pop()
+
+        state.bid = memory["bid"]
+        state.active_player = memory["active_player"]
+        state.bidding_phase = memory["bidding_phase"]
+        state.phase = memory["phase"]
+        state.declarer_idx = memory["declarer_idx"]
+        state.highest_bid = memory["highest_bid"]
+        state.last_bid = memory["last_bid"]
+        state.bid_before[self.player_idx] = memory["bid_before"]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Listen(Action[ISkOGameState]):
     """Listen during bidding phase."""
 
     def apply(
         self, state: ISkOGameState, rule_set: AbstractRuleSet[ISkOGameState]
     ) -> None:
-        self._memory = {
-            "active_player": state.active_player,
-            "bidding_phase": state.bidding_phase,
-            "phase": state.phase,
-            "declarer_idx": state.declarer_idx,
-            "last_bid": state.last_bid,
-            "bid_before": state.bid_before[self.player_idx],
-        }
+        state.undo_memory.append(
+            {
+                "active_player": state.active_player,
+                "bidding_phase": state.bidding_phase,
+                "phase": state.phase,
+                "declarer_idx": state.declarer_idx,
+                "last_bid": state.last_bid,
+                "bid_before": state.bid_before[self.player_idx],
+            }
+        )
 
         state.last_bid = self
         state.bid_before[self.player_idx] = True
@@ -67,29 +73,33 @@ class Listen(Action[ISkOGameState]):
         rule_set.advance_state(state, self)
 
     def undo(self, state: ISkOGameState) -> None:
-        state.active_player = self._memory["active_player"]
-        state.bidding_phase = self._memory["bidding_phase"]
-        state.phase = self._memory["phase"]
-        state.declarer_idx = self._memory["declarer_idx"]
-        state.last_bid = self._memory["last_bid"]
-        state.bid_before[self.player_idx] = self._memory["bid_before"]
+        memory = state.undo_memory.pop()
+
+        state.active_player = memory["active_player"]
+        state.bidding_phase = memory["bidding_phase"]
+        state.phase = memory["phase"]
+        state.declarer_idx = memory["declarer_idx"]
+        state.last_bid = memory["last_bid"]
+        state.bid_before[self.player_idx] = memory["bid_before"]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Pass(Action[ISkOGameState]):
     """Pass during bidding phase."""
 
     def apply(
         self, state: ISkOGameState, rule_set: AbstractRuleSet[ISkOGameState]
     ) -> None:
-        self._memory = {
-            "active_player": state.active_player,
-            "bidding_phase": state.bidding_phase,
-            "phase": state.phase,
-            "declarer_idx": state.declarer_idx,
-            "last_bid": state.last_bid,
-            "passes": state.passes[self.player_idx],
-        }
+        state.undo_memory.append(
+            {
+                "active_player": state.active_player,
+                "bidding_phase": state.bidding_phase,
+                "phase": state.phase,
+                "declarer_idx": state.declarer_idx,
+                "last_bid": state.last_bid,
+                "passes": state.passes[self.player_idx],
+            }
+        )
 
         rule_set.advance_state(state, self)
 
@@ -98,38 +108,44 @@ class Pass(Action[ISkOGameState]):
         state.passes[self.player_idx] = True
 
     def undo(self, state: ISkOGameState) -> None:
-        state.active_player = self._memory["active_player"]
-        state.bidding_phase = self._memory["bidding_phase"]
-        state.phase = self._memory["phase"]
-        state.declarer_idx = self._memory["declarer_idx"]
-        state.last_bid = self._memory["last_bid"]
-        state.passes[self.player_idx] = self._memory["passes"]
+        memory = state.undo_memory.pop()
+
+        state.active_player = memory["active_player"]
+        state.bidding_phase = memory["bidding_phase"]
+        state.phase = memory["phase"]
+        state.declarer_idx = memory["declarer_idx"]
+        state.last_bid = memory["last_bid"]
+        state.passes[self.player_idx] = memory["passes"]
 
 
-@dataclass
+@dataclass(frozen=True)
 class DrawSkat(Action[ISkOGameState]):
     """Draw Skat into players hand, removing hand multiplier."""
 
     def apply(
         self, state: ISkOGameState, rule_set: AbstractRuleSet[ISkOGameState]
     ) -> None:
-        self._memory = {
-            "skat": state.skat.copy(),
-            "hand": state.hands[state.active_player].copy(),
-            "hand_available": state.hand_available,
-        }
+        state.undo_memory.append(
+            {
+                "skat": state.skat.copy(),
+                "hand": state.hands[state.active_player].copy(),
+                "hand_available": state.hand_available,
+            }
+        )
 
         state.hands[state.active_player] += state.skat
         state.skat = []
         state.hand_available = False
 
     def undo(self, state: ISkOGameState) -> None:
-        state.skat = self._memory["skat"]
-        state.hands[state.active_player] = self._memory["hand"]
-        state.hand_available = self._memory["hand_available"]
+        memory = state.undo_memory.pop()
+
+        state.skat = memory["skat"]
+        state.hands[state.active_player] = memory["hand"]
+        state.hand_available = memory["hand_available"]
 
 
-@dataclass
+@dataclass(frozen=True)
 class BurySkat(Action[ISkOGameState]):
     """Bury cards from hand into the Skat."""
 
@@ -147,7 +163,7 @@ class BurySkat(Action[ISkOGameState]):
         state.hands[state.active_player] += list(self.cards)
 
 
-@dataclass
+@dataclass(frozen=True)
 class DeclareGame(Action[ISkOGameState]):
     """Declare specific game. Hand is applied automatically dependent on the game state."""
 
@@ -159,25 +175,29 @@ class DeclareGame(Action[ISkOGameState]):
     def apply(
         self, state: ISkOGameState, rule_set: AbstractRuleSet[ISkOGameState]
     ) -> None:
-        self._memory = {
-            "active_player": state.active_player,
-            "phase": state.phase,
-            "declaration": state.declaration,
-            "game_type": state.game_type,
-            "tops": state.tops,
-        }
+        state.undo_memory.append(
+            {
+                "active_player": state.active_player,
+                "phase": state.phase,
+                "declaration": state.declaration,
+                "game_type": state.game_type,
+                "tops": state.tops,
+            }
+        )
 
         rule_set.advance_state(state, self)
 
     def undo(self, state: ISkOGameState) -> None:
-        state.phase = self._memory["phase"]
-        state.declaration = self._memory["declaration"]
-        state.active_player = self._memory["active_player"]
-        state.game_type = self._memory["game_type"]
-        state.tops = self._memory["tops"]
+        memory = state.undo_memory.pop()
+
+        state.phase = memory["phase"]
+        state.declaration = memory["declaration"]
+        state.active_player = memory["active_player"]
+        state.game_type = memory["game_type"]
+        state.tops = memory["tops"]
 
 
-@dataclass
+@dataclass(frozen=True)
 class PlayCard(Action[ISkOGameState]):
     """Play specific card."""
 
@@ -188,23 +208,27 @@ class PlayCard(Action[ISkOGameState]):
     ) -> None:
         trick_finishes = len(state.current_trick.cards) == 2
 
-        self._memory = {
-            "active_player": state.active_player,
-            "points": state.points.copy(),
-            "trick_finishes": trick_finishes,
-            "phase": state.phase,
-        }
+        state.undo_memory.append(
+            {
+                "active_player": state.active_player,
+                "points": state.points.copy(),
+                "trick_finishes": trick_finishes,
+                "phase": state.phase,
+            }
+        )
         state.hands[self.player_idx].remove(self.card)
 
         rule_set.advance_state(state, self)
 
     def undo(self, state: ISkOGameState) -> None:
-        state.hands[self.player_idx].append(self.card)
-        state.active_player = self._memory["active_player"]
-        state.points = self._memory["points"]
-        state.phase = self._memory["phase"]
+        memory = state.undo_memory.pop()
 
-        if self._memory["trick_finishes"]:
+        state.hands[self.player_idx].append(self.card)
+        state.active_player = memory["active_player"]
+        state.points = memory["points"]
+        state.phase = memory["phase"]
+
+        if memory["trick_finishes"]:
             state.current_trick = state.trick_history.pop()
 
         state.current_trick.pop()

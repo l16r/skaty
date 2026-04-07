@@ -2,7 +2,7 @@ import math
 from itertools import combinations
 from typing import Generator, Optional, cast
 
-from skaty.cards import Card, Rank, Suit
+from skaty.cards import Card, Rank, Suit, create_deck
 from skaty.exceptions import (
     InvalidActionError,
     InvalidGameStateError,
@@ -124,6 +124,14 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         Rank.EIGHT: 2,
         Rank.SEVEN: 1,
     }
+
+    _GLOBAL_PLAY_CARDS = tuple(
+        tuple(
+            PlayCard(player_idx=p, card=c)
+            for c in sorted(create_deck(), key=lambda c: c.uid)
+        )
+        for p in (0, 1, 2)
+    )
 
     def __init__(self) -> None:
         super().__init__()
@@ -576,7 +584,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
                     if self.is_valid_card_play(
                         hand, card, state.current_trick.first_card, state.game_type
                     ):
-                        yield PlayCard(card=card, player_idx=player_idx)
+                        yield self._GLOBAL_PLAY_CARDS[player_idx][card.uid]
 
             elif action_type is DeclareBid:
                 try:

@@ -33,6 +33,7 @@ class GameState:
         "current_trick",
         "trick_history",
         "action_history",
+        "undo_memory",
         "bid",
         "tops",
         "hand_available",
@@ -95,6 +96,7 @@ class GameState:
         self.current_trick = Trick()
         self.trick_history: list[Trick] = []
         self.action_history: list[Action] = []
+        self.undo_memory: list[dict] = []
 
         self.bid: Optional[int] = None
         self.tops: Optional[int] = None

@@ -24,6 +24,7 @@ def mock_state():
         [],
     ]
     state.hand_available = True
+    state.undo_memory = []
     return state
 
 
