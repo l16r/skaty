@@ -117,6 +117,16 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         Pass: [GamePhases.BID],
     }
 
+    _TRUMP_RANK_MAP = {
+        Rank.ACE: 7,
+        Rank.TEN: 6,
+        Rank.KING: 5,
+        Rank.QUEEN: 4,
+        Rank.NINE: 3,
+        Rank.EIGHT: 2,
+        Rank.SEVEN: 1,
+    }
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -225,18 +235,9 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
             # Jacks are highest trump
             return 100 + card.suit.value
 
-        trump_rank_map = {
-            Rank.ACE: 7,
-            Rank.TEN: 6,
-            Rank.KING: 5,
-            Rank.QUEEN: 4,
-            Rank.NINE: 3,
-            Rank.EIGHT: 2,
-            Rank.SEVEN: 1,
-        }
         if self.is_card_trump(card, game_type):
-            return 50 + trump_rank_map.get(card.rank, 0)
-        return trump_rank_map.get(card.rank, 0)
+            return 50 + self._TRUMP_RANK_MAP.get(card.rank, 0)
+        return self._TRUMP_RANK_MAP.get(card.rank, 0)
 
     def determine_trick_winner(self, trick: list[Card], game_type: GameType) -> int:
         """
