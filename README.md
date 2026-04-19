@@ -13,8 +13,7 @@ It provides a robust core engine and includes a reference implementation of the 
 
 ## Documentation
 
-A comprehensive documentation covering architecture, tutorials and API references can be found here:
-TODO: link
+A comprehensive documentation covering architecture, tutorials and API references can be found [here](https://l16r.github.io/skaty/).
 
 ## Quickstart
 
