@@ -9,7 +9,7 @@ A game's state is modified by applying/undoing [actions](#actions) following the
 
 The `GameState` class contains all state of a specific game instance.
 
-It acts as a base class containing attributes used in any variation of Skat. It can be extended to contain more attributes if needed by the rule set (TODO: link creating own rule set).
+It acts as a base class containing attributes used in any variation of Skat. It can be extended to contain more attributes if needed by the rule set (see tutorial [Creating Rule Sets and Actions](./tutorials/creating-rule-sets-actions.md)).
 
 For example `ISkOGameState` extends `GameState` to contain, among others, information about the current bidding phase, the highest bid and last bid.
 
