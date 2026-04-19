@@ -20,7 +20,12 @@ from skaty.isko.actions import (
     Pass,
     PlayCard,
 )
-from skaty.isko.state import BiddingPhase, GameDeclaration, ISkOGameState, ISkOGameTypes
+from skaty.isko.state import (
+    BiddingPhase,
+    GameDeclaration,
+    ISkOGameTypes,
+    T_ISkOGameState,
+)
 from skaty.rules import (
     AbstractRuleSet,
     Action,
@@ -101,7 +106,7 @@ VALID_BIDS = [
 ]
 
 
-class ISkO(AbstractRuleSet[ISkOGameState]):
+class ISkO(AbstractRuleSet[T_ISkOGameState]):
     _VALID_BIDS = VALID_BIDS
 
     _NEXT_VALID_BID = {
@@ -181,6 +186,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         Pass: [GamePhases.BID],
     }
 
+    # Order of cards in one suit
     _TRUMP_RANK_MAP = {
         Rank.ACE: 7,
         Rank.TEN: 6,
@@ -208,16 +214,18 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
     def __init__(self) -> None:
         super().__init__()
 
-    def initialize_state(self, state: ISkOGameState) -> None:
+    def initialize_state(self, state: T_ISkOGameState) -> None:
+        state.tops = None
         state.bidding_phase = BiddingPhase.ForehandMiddlehand
+        state.declarer_idx = None
         state.declaration = None
-        state.highest_bid = 0
         state.last_bid = None
         state.bid_before = [False, False, False]
         state.passes = [False, False, False]
         state.tricks_won = [0, 0, 0]
 
     def trump_suit(self, game_type: GameType) -> Optional[Suit]:
+        """Return trump suit for game type if exists."""
         match game_type:
             case ISkOGameTypes.DIAMONDS:
                 return Suit.DIAMONDS
@@ -231,6 +239,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         return None
 
     def is_card_trump(self, card: Card, game_type: GameType) -> bool:
+        """Is card trump?"""
         # ISkO 2.2.4
         if game_type in (ISkOGameTypes.NULL, ISkOGameTypes.PASS):
             return False
@@ -240,12 +249,14 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         return (card.suit is trump) or (card.rank is Rank.JACK)
 
     def has_suit(self, hand: list[Card], suit: Suit) -> bool:
+        """Does the hand contain cards with suit?"""
         for card in hand:
             if card.suit == suit:
                 return True
         return False
 
     def has_trump(self, hand: list[Card], game_type: GameType) -> bool:
+        """Does the hand contain trump cards"""
         for card in hand:
             if self.is_card_trump(card, game_type):
                 return True
@@ -376,17 +387,16 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
 
         raise InvalidGameTypeError()
 
-    def calculate_game_score(self, state: ISkOGameState) -> list[int]:
+    def calculate_game_score(self, state: T_ISkOGameState) -> list[int]:
+        """Score calculation according to ISkO and docstring of base class."""
         scores = [0, 0, 0]
         declarer = state.declarer_idx
         bid = state.bid
         game_type = state.game_type
 
-        if (
-            game_type is GameTypes.PASS
-            or state.phase is GamePhases.PASSED
-            or bid is None
-        ):
+        if not game_type:
+            raise InvalidGameStateError("No game type.")
+        if game_type is GameTypes.PASS or bid is None:
             raise InvalidGameStateError("A game has no score if it is passed.")
         if declarer is None or state.declaration is None:
             raise InvalidGameStateError(
@@ -472,13 +482,13 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
             scores[declarer] = -2 * game_value
         return scores
 
-    def is_valid_action_during_phase(
+    def is_valid_action_type_during_phase(
         self,
         action: Action,
         phase: GamePhase,
     ) -> bool:
         """
-        Tests if action is possible in game phase. Does not imply the particular action itself is valid (e.g. for Bid(17), GamePhase.BIDDING it would return True, as Bid is a valid action in bidding even though Bid(17) itself is not valid).
+        Tests if action type is possible in game phase. Does not imply the particular action itself is valid (e.g. for Bid(17), GamePhase.BIDDING it would return True, as Bid is a valid action in bidding even though Bid(17) itself is not valid).
         """
         allowed_phases = self._PHASE_RULES.get(type(action), [])
         return phase in allowed_phases
@@ -503,7 +513,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
 
     def is_valid_bid(
         self,
-        state: ISkOGameState,
+        state: T_ISkOGameState,
         bid: DeclareBid | Listen | Pass,
     ) -> bool:
         """
@@ -542,7 +552,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
                 return False
 
             # Must be higher than all previous bids and valid value
-            return bid.bid > state.highest_bid and bid.bid in self._VALID_BIDS
+            return bid.bid > (state.bid or 0) and bid.bid in self._VALID_BIDS
 
         # Listen can only be done in response to a bid directly before
         if isinstance(bid, Listen):
@@ -613,15 +623,16 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         return True
 
     def get_valid_actions(
-        self, state: ISkOGameState, player_idx: PlayerIdx
+        self, state: T_ISkOGameState, player_idx: PlayerIdx
     ) -> Generator[Action, None, None]:
+        """Implement per base class docstring."""
         if player_idx != state.active_player or state.phase == GamePhases.GAME_OVER:
             return
 
         valid_actions = self.get_action_types_for_phase(state.phase)
 
         for action_type in valid_actions:
-            if action_type is PlayCard:
+            if action_type is PlayCard and state.game_type:
                 hand = state.hands[player_idx]
                 for card in hand:
                     if self.is_valid_card_play(
@@ -699,13 +710,19 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
                             player_idx=player_idx,
                         )
 
-    def is_valid_action(self, state: ISkOGameState, action: Action) -> bool:
+    def is_valid_action(self, state: T_ISkOGameState, action: Action) -> bool:
+        """
+        Can action be applied in state? Checks if player is active and per action validity according to the rules.
+
+        Raises:
+            InvalidActionError: If action is not checked, because it is unknown.
+        """
         # Only the active player can take action
         if action.player_idx != state.active_player:
             return False
 
         # Only allow actions their phase
-        if not self.is_valid_action_during_phase(action, state.phase):
+        if not self.is_valid_action_type_during_phase(action, state.phase):
             return False
 
         match action:
@@ -742,6 +759,9 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
                 return self.is_valid_game_declaration(declaration)
 
             case PlayCard(player_idx, card):
+                if not state.game_type:
+                    return False
+
                 return self.is_valid_card_play(
                     state.hands[player_idx],
                     card,
@@ -753,7 +773,10 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
             f"Cannot determine if action {action} is valid in {state}."
         )
 
-    def advance_state(self, state: ISkOGameState, action: Action) -> None:
+    def advance_state(self, state: T_ISkOGameState, action: Action) -> None:
+        """
+        Advance state with action. Advances bidding/active player, sets game declarations etc.
+        """
         match action:
             case DeclareBid() | Listen() | Pass():
                 return self.advance_bidding(state, action)
@@ -772,7 +795,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
                 return self.advance_playing(state, action)
 
     def advance_bidding(
-        self, state: ISkOGameState, action: DeclareBid | Listen | Pass
+        self, state: T_ISkOGameState, action: DeclareBid | Listen | Pass
     ) -> None:
         """
         Mutate the state in bidding dependent on action.
@@ -839,7 +862,8 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
                 state.declarer_idx = other_player
                 state.active_player = state.declarer_idx
             elif passes == 2:
-                state.phase = GamePhases.PASSED
+                state.phase = GamePhases.GAME_OVER
+                state.game_type = GameTypes.PASS
             elif passes < 2:
                 state.active_player = other_player
 
@@ -851,7 +875,7 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
             else:
                 state.active_player = other_player
 
-    def advance_playing(self, state: ISkOGameState, action: PlayCard) -> None:
+    def advance_playing(self, state: T_ISkOGameState, action: PlayCard) -> None:
         """
         Mutate the state as card is played.
         Might modify:
@@ -868,6 +892,11 @@ class ISkO(AbstractRuleSet[ISkOGameState]):
         if state.current_trick.is_complete():
             points = state.current_trick.get_trick_points()
             # Index of winner in trick order
+            if not state.game_type:
+                raise InvalidGameStateError(
+                    "Advancing playing even though no game type is set."
+                )
+
             winner_offset = state.current_trick.get_winner(self, state.game_type)
 
             current_player = state.active_player

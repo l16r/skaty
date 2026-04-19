@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any, Generator, Generic, Literal, NewType, TypeVar
+from typing import TYPE_CHECKING, Generator, Generic, Literal, NewType, TypeVar
 
 from skaty.cards import Card
 
