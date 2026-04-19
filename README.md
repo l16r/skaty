@@ -92,4 +92,4 @@ Contributions are welcome! If you find a bug or want to improve performance, fee
 
 ## License
 
-MIT License, see [License](/LICENSE.md) file.
+MIT License, see [License](/LICENSE) file.
