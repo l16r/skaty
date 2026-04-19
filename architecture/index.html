@@ -780,7 +780,7 @@
 A game's state is modified by applying/undoing <a href="#actions">actions</a> following the Command Pattern.</p>
 <h2 id="game-state">Game State</h2>
 <p>The <code>GameState</code> class contains all state of a specific game instance.</p>
-<p>It acts as a base class containing attributes used in any variation of Skat. It can be extended to contain more attributes if needed by the rule set (TODO: link creating own rule set).</p>
+<p>It acts as a base class containing attributes used in any variation of Skat. It can be extended to contain more attributes if needed by the rule set (see tutorial <a href="../tutorials/creating-rule-sets-actions/">Creating Rule Sets and Actions</a>).</p>
 <p>For example <code>ISkOGameState</code> extends <code>GameState</code> to contain, among others, information about the current bidding phase, the highest bid and last bid.</p>
 <h3 id="state-modification">State modification</h3>
 <p>The game state should <strong>never</strong> be directly mutated by the user. Instead, state changes are delegated to actions and the rule set.</p>
