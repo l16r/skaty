@@ -9,8 +9,10 @@ if TYPE_CHECKING:
     from skaty.game_state import GameState
 
 TState = TypeVar("TState", bound="GameState")
+"""Any GameState."""
 
 type PlayerIdx = Literal[0, 1, 2]
+"""Number to uniquely identify player in a single game."""
 
 
 class PlayerPosition(IntEnum):
@@ -24,29 +26,43 @@ class PlayerPosition(IntEnum):
 
 
 GamePhase = NewType("GamePhase", str)
+"""Differentiate between GamePhases and strings for type checking. GamePhase should have form scope + ':' + IDENTIFIER (e.g. 'core:BID')."""
 
 
 class GamePhases:
     BID = GamePhase("core:BID")
-    PASSED = GamePhase("core:PASSED")
+    """Bidding phase."""
+
     DECLARATION = GamePhase("core:DECLARATION")
+    """Waiting for a player to declare or use Skat."""
+
     PLAYING = GamePhase("core:PLAYING")
+    """Playing cards in tricks."""
+
     GAME_OVER = GamePhase("core:GAME_OVER")
+    """Game over."""
 
 
 GameType = NewType("GameType", str)
+"""Differentiate between GameTypes and strings for type checking. GameType should have form scope + ':' + IDENTIFIER (e.g. 'core:PASS')"""
 
 
 class GameTypes:
-    PASS = GameType("core:pass")  # used in case a game is passed during bidding
+    PASS = GameType("core:PASS")
+    """Used if a game is passed during bidding."""
 
 
 @dataclass(frozen=True)
 class Action(ABC, Generic[TState]):
+    """
+    Base class for any action.
+    """
+
     player_idx: PlayerIdx
-    _memory: dict[str, Any] = field(default_factory=dict, init=False, repr=False)
+    """Player taking the action."""
 
     def is_valid(self, state: TState, rule_set: "AbstractRuleSet[TState]") -> bool:
+        """Wrapper for rule_set.is_valid_action(state,self)."""
         return rule_set.is_valid_action(state, self)
 
     @abstractmethod
@@ -61,15 +77,34 @@ class Action(ABC, Generic[TState]):
 
 
 class AbstractRuleSet(ABC, Generic[TState]):
+    """
+    Base class for every rule set over a given type of state.
+    The rule set itself is stateless. All state belongs to TState.
+    """
+
     @abstractmethod
     def initialize_state(self, state: TState) -> None:
         """
-        Hook to initialize rule-specific variables in state.
+        Hook to initialize rule-specific attributes in state.
         """
         pass
 
     @abstractmethod
     def determine_trick_winner(self, trick: list[Card], game_type: GameType) -> int:
+        """
+        Calculates index of winning player.
+
+        Args:
+            trick: Cards played in order of the trick.
+            game_type: Game type used for trick.
+
+        Returns:
+            (PlayerIdx): Of the winning player
+
+        Raises:
+            TrickNotFinishedError: If trick is not finished.
+            InvalidGameTypeError: If game type does not allow for tricks.
+        """
         pass
 
     @abstractmethod
@@ -97,5 +132,5 @@ class AbstractRuleSet(ABC, Generic[TState]):
 
     @abstractmethod
     def advance_state(self, state: TState, action: Action) -> None:
-        """Gets called, after action is applied on state. The rule set could for example change phases or the active player."""
+        """Hook for rule set to change state after an action is applied (e.g. change bidding phase)."""
         pass

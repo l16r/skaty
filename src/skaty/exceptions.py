@@ -5,7 +5,7 @@ class SkatyError(Exception):
 
 
 class InvalidGameStateError(SkatyError):
-    """Raised if an operation is performed in an invalid game state (e.g. playing a card before a trick starts)"""
+    """Raised if an operation is performed in an invalid game state (e.g. playing a card before a trick starts)."""
 
 
 class InvalidGameTypeError(SkatyError):
@@ -30,7 +30,3 @@ class TrickNotFinishedError(InvalidGameStateError):
 
 class TrickFinishedError(InvalidGameStateError):
     """Raised when a card is added to a trick if it is finished."""
-
-
-class IncompatibleRulesError(SkatyError):
-    """Raised when two rule sets collide (e.g. comparing two cards based on different rule sets)."""

@@ -1,4 +1,3 @@
-from functools import reduce
 from typing import Optional
 
 from skaty.cards import Card
@@ -10,6 +9,10 @@ from skaty.rules import AbstractRuleSet, GameType
 
 
 class Trick:
+    """
+    A single trick of 3 cards.
+    """
+
     _cards: list[Card]
 
     def __init__(self):
@@ -17,16 +20,19 @@ class Trick:
 
     @property
     def first_card(self) -> Optional[Card]:
+        """Returns the first card from trick if exists."""
         if len(self._cards) == 0:
             return None
         return self._cards[0]
 
     @property
     def len(self) -> int:
+        """Number of cards in trick."""
         return len(self._cards)
 
     @property
     def cards(self) -> list[Card]:
+        """Cards in trick in order."""
         return self._cards
 
     def add_card(self, card: Card):
@@ -52,6 +58,7 @@ class Trick:
         return self._cards.pop()
 
     def is_complete(self):
+        """Is trick finished?"""
         return len(self._cards) == 3
 
     def get_winner(self, rule_set: AbstractRuleSet, game_type: GameType) -> int:

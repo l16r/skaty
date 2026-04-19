@@ -1,0 +1,51 @@
+site_name: Skaty Documentation
+repo_name: l16r/skaty
+repo_url: https://github.com/l16r/skaty
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Tutorials:
+      - Extending Rule Sets: tutorials/extending-rule-sets.md
+      - Creating Rule Sets and Actions: tutorials/creating-rule-sets-actions.md
+  - Architecture: architecture.md
+  - API: api.md
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.instant
+    - navigation.tracking
+    - search.suggest
+  palette:
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_root_heading: true
+            show_source: false
+            heading_level: 2
+            show_symbol_type_toc: true
+            show_symbol_type_heading: true
+            show_signature_annotations: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences # For code blocks

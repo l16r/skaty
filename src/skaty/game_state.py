@@ -1,7 +1,8 @@
-from typing import Generator, Optional, Self
+from typing import Any, Iterator, Optional, Self
 
 from skaty.cards import Card, create_deck, shuffle_deck
 from skaty.exceptions import (
+    InvalidActionError,
     InvalidGameStateError,
 )
 from skaty.rules import (
@@ -10,7 +11,6 @@ from skaty.rules import (
     GamePhase,
     GamePhases,
     GameType,
-    GameTypes,
     PlayerIdx,
     PlayerPosition,
 )
@@ -18,6 +18,13 @@ from skaty.trick import Trick
 
 
 class GameState:
+    """
+    Contains all the state of a specific game.
+    State should never be directly modified by the user. Instead, state modification is left to the rule set and actions.
+    Actions are applied/undone by directly calling their apply/undo method.
+    The validity of actions and calculation of game score is strictly delegated to the rule set passed.
+    """
+
     __slots__ = (
         "_rule_set",
         "_log",
@@ -54,17 +61,21 @@ class GameState:
         Args:
             rule_set: Ruleset to consider during the game.
             dealer_idx: Index of the player who deals the hands.
-            hands: 3 hands of 10 cards.
-            skat: 2 cards.
-            log: Log information about game state to stdout.
+            hands: 3 hands of 10 cards, with the primary index corresponding to the player's index.
+            skat: 2 cards to be buried in the Skat.
+            log: Whether to log information about game state to stdout.
 
         Raises:
-            InvalidGameStateError: If hands or skat or dealer_id are incorrect.
+            InvalidGameStateError: If hands or skat or dealer_idx are incorrect.
         """
         self._rule_set = rule_set
         self._log = log
+
         self.phase: GamePhase = GamePhases.BID
-        self.game_type: GameType = GameTypes.PASS
+        """Current game phase."""
+
+        self.game_type: Optional[GameType] = None
+        """Current game type."""
 
         if dealer_idx < 0 or dealer_idx > 2:
             raise InvalidGameStateError(
@@ -74,6 +85,7 @@ class GameState:
         self._middlehand: PlayerIdx = (dealer_idx + 2) % 3
         self._backhand: PlayerIdx = dealer_idx
         self.active_player: PlayerIdx = self._middlehand
+        """Currently active player."""
 
         if len(hands) != 3:
             raise InvalidGameStateError(
@@ -84,32 +96,47 @@ class GameState:
                 "hands must contain 3 hands of 10 cards, but contains at least one hand with less or more than 10 cards."
             )
         self.hands = hands
+        """List of player hands indexed with PlayerIdx."""
 
         if len(skat) != 2:
             raise InvalidGameStateError(
                 f"skat must be length 2, but is length {len(skat)}."
             )
         self.skat = skat
+        """List of two card Skat."""
 
         self.points: list[int] = [0, 0, 0]
+        """Points achieved in won tricks."""
 
         self.current_trick = Trick()
+        """Current trick."""
+
         self.trick_history: list[Trick] = []
+        """List of all tricks in chronological order."""
+
         self.action_history: list[Action] = []
-        self.undo_memory: list[dict] = []
+        """List of all actions in chronological order. Should not be directly modified, because apply_action and undo_action manage it."""
+
+        self.undo_memory: list[dict[str, Any]] = []
+        """
+        Every action's apply method pushes a dictionary to this list with information about the previous state. This is in turn popped and used in the undo method.
+        Index corresponds to action_history.
+        """
 
         self.bid: Optional[int] = None
-        self.tops: Optional[int] = None
-        self.hand_available = True
-        self.declarer_idx: Optional[PlayerIdx] = None
+        """Highest bid yet."""
 
+        self.hand_available = True
+        """Has the player looked at the skat?"""
+
+        # Allow rulesets with custom states to initialize it.
         self._rule_set.initialize_state(self)
 
     @classmethod
     def from_random_deal(
         cls, rule_set: AbstractRuleSet, dealer_idx: PlayerIdx, log: bool = False
     ) -> Self:
-        """Creates a game with a randomized deck."""
+        """Creates a game with a randomized deck. See __init__ for docs."""
         deck = shuffle_deck(create_deck())
         hands = [deck[0:10], deck[10:20], deck[20:30]]
         skat = deck[30:32]
@@ -117,16 +144,17 @@ class GameState:
         return cls(rule_set, dealer_idx, hands, skat, log)
 
     def calculate_game_score(self) -> list[int]:
+        """Wrapper for AbstractRuleSet.calculate_game_score."""
         return self._rule_set.calculate_game_score(self)
 
     def apply_action(self, action: Action, check_validity: bool = True) -> None:
         """
-        Executes the action and pushes it to the history stack.
+        Optionally check if action is valid, then call its apply method. Appends action to action_history.
         """
         if check_validity and not action.is_valid(self, self._rule_set):
             if self._log:
                 print("Failed to apply action. Action is invalid.")
-            return
+            raise InvalidActionError(f"Action {action} is not valid.")
 
         if self._log:
             print(f"Applying action: {action}")
@@ -136,12 +164,17 @@ class GameState:
 
     def undo_action(self) -> None:
         """
-        Pops the last action and tells it to reverse its effects.
+        Pops the last action from action_history and executes its undo method.
+
+        Raises:
+            InvalidGameStateError: If action_history contains no action to undo.
         """
         if not self.action_history:
             if self._log:
                 print("No actions to undo.")
-            return
+            raise InvalidGameStateError(
+                "Cannot undo action, because no previous action exists."
+            )
 
         action = self.action_history.pop()
 
@@ -150,13 +183,16 @@ class GameState:
 
         action.undo(self)
 
-    def get_valid_actions(self, player_idx: PlayerIdx) -> Generator[Action, None, None]:
+    def get_valid_actions(self, player_idx: PlayerIdx) -> Iterator[Action]:
         """
-        All valid actions for a given player in current state.
+        Wrapper for AbstractRuleSet.get_valid_actions.
         """
         return self._rule_set.get_valid_actions(self, player_idx)
 
     def get_player_position(self, player_idx: PlayerIdx) -> PlayerPosition:
+        """
+        Returns the PlayerPosition for a given player with player_idx.
+        """
         if player_idx == self._forehand:
             return PlayerPosition.FOREHAND
         elif player_idx == self._middlehand:

@@ -37,16 +37,22 @@ class Rank(IntEnum):
 
 class Suit(IntEnum):
     """
-    ISkO 1.2.1.
+    Suits according to ISkO 1.2.1.
     """
 
     DIAMONDS = 0
+    """DIAMONDS"""
     HEARTS = 1
+    """HEARTS"""
     SPADES = 2
+    """SPADES"""
     CLUBS = 3
+    """CLUBS"""
 
 
 class Card:
+    """Card identified by rank and suit."""
+
     __slots__ = "_rank", "_suit", "points", "uid"
     _instances: dict[tuple[Rank, Suit], "Card"] = {}
 
@@ -68,10 +74,12 @@ class Card:
 
     @property
     def rank(self) -> Rank:
+        """Rank of card."""
         return self._rank
 
     @property
     def suit(self) -> Suit:
+        """Suit of card."""
         return self._suit
 
     def __str__(self) -> str:
@@ -93,4 +101,5 @@ def create_deck() -> list[Card]:
 
 
 def shuffle_deck(deck: list[Card]) -> list[Card]:
+    """Shuffles a given deck of cards."""
     return random.sample(deck, len(deck))

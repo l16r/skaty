@@ -1,30 +1,12 @@
-# skaty
+# Getting Started
 
-An extensible, high-performance [Skat](<https://en.wikipedia.org/wiki/Skat_(card_game)>) implementation in Python.
-
-It provides a robust core engine and includes a reference implementation of the [International Skat Order (ISkO)](https://ispacanada.org/docs/rules/505fc8_e561984976a345bc8404e4474ce066ef.pdf).
-
-## Features
-
-- **ISkO compliant**: strict adherence to official rules
-- **Extensible**: easily implement house rules
-- **AI-Ready**: built with fast, allocation-friendly `apply`/`undo` architecture, making it perfectly suited for reinforcement learning
-- **Type Safe**: Fully typed and designed for modern Python
-
-## Documentation
-
-A comprehensive documentation covering architecture, tutorials and API references can be found here:
-TODO: link
-
-## Quickstart
-
-### Installation
+## Installation
 
 skaty is on PyPI. Install it with your favorite package manager. For example:
 
 TODO: add to pypi
 
-### Usage - Random game
+## Usage: Random Game
 
 skaty separates the rule set from the game state. First instantiate a rule set (e.g. the International Skat Order defined by skaty) and then pass it to the game state.
 
@@ -72,23 +54,3 @@ else:
     # If an ISkO game is not passed, it needs to have a declarer.
     print(f"Game ended in phase {game.phase} with score {game.calculate_game_score()[game.declarer_idx]} for player {game.declarer_idx}")
 ```
-
-For more information about ISkO or implementing your own rules, consult the [documentation](#documentation).
-
-## Testing
-
-Tests are written with pytest.
-
-Run them with:
-
-```
-poetry run pytest
-```
-
-## Contributing
-
-Contributions are welcome! If you find a bug or want to improve performance, feel free to open an issue or submit a pull request.
-
-## License
-
-MIT License, see [License](/LICENSE.md) file.
