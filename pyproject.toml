@@ -1,6 +1,6 @@
 [project]
 name = "skaty"
-version = "0.1.0"
+version = "0.1.1"
 description = "An extensible Skat implementation with reference implementation for International Skat Order"
 license = "MIT"
 license-files = ["LICENSE"]
