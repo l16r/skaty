@@ -22,7 +22,9 @@ TODO: link
 
 skaty is on PyPI. Install it with your favorite package manager. For example:
 
-TODO: add to pypi
+```
+pip install skaty
+```
 
 ### Usage - Random game
 
