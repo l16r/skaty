@@ -65,8 +65,7 @@ T_RamschGameState = TypeVar("T_RamschGameState", bound=RamschGameState)
 # In this case, it makes no difference, because T_RamschGameState adds no attributes.
 # You could also just pass RamschGameState, but then RamschRules will not be extensible with new game states.
 class RamschRules(ISkO[T_RamschGameState]):
-
-    # Override the advance_state method called by every action on apply.
+# Override the advance_state method called by every action on apply.
     def advance_state(self, state: T_RamschGameState, action: Action) -> None:
         # Let ISkO advance the state first. This will handle bidding, declaration and playing.
         super().advance_state(state, action)
